@@ -4,139 +4,197 @@
  <meta charset="UTF-8">
  <meta name="viewport" content="width=device-width, initial-scale=1.0">
  <title>want peek you</title>
- <style>
- body { font-family: sans-serif; max-width: 800px; margin: auto; padding: 20px; line-height: 1.6; }
- h4, h5 { color: #333; }
- label { display: block; margin-top: 10px; font-weight: bold; }
- input[type="text"], textarea, select { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
- button { padding: 10px 15px; margin-top: 10px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
- button:hover { background-color: #0056b3; }
- .flex-container { display: flex; gap: 20px; }
- .flex-item { flex: 1; }
- pre { background-color: #f4f4f4; padding: 10px; border: 1px solid #ddd; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; }
- #log { margin-top: 20px; padding: 10px; background-color: #e9e9e9; border: 1px solid #ddd; height: 150px; overflow-y: scroll; }
- </style>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";padding:.5rem;line-height:1.3;font-weight:400;background-color:#f7f7f7;color:#666;font-size:.9rem}#container{max-width:600px;margin-left:.5rem;margin-right:auto;padding:.5rem .5rem 0rem .5rem}h4{font-size:1.2rem;margin:0rem 0rem .5rem 0rem;color:#666}h5{font-size:1rem;margin-top:1rem}p{margin:0}a{color:#666;text-decoration:none}input,textarea,select{font-size:.9rem;padding:.5rem .3rem;border:1px solid #ddd;border-radius:4px;color:#666;background-color:#fff;cursor:pointer;transition:background-color 0.3s,color 0.3s;width:100%;margin-top:.5rem}input[type="checkbox"]{padding:0;margin:0;vertical-align:middle;appearance:checkbox;-webkit-appearance:checkbox}textarea{resize:vertical}.container-button{font-size:.8rem;font-weight:700;padding:.25rem 1rem;margin:.5rem .2rem;border:0 solid #ddd;border-radius:999px;color:#fff;background-color:#666;white-space:nowrap;cursor:pointer;transition:background-color 0.3s,color 0.3s}.container-button:hover{background-color:#555}.flex-container{display:flex;align-items:flex-start;gap:.5rem;margin:.5rem 0rem}.flex-item{flex-grow:1;display:flex;flex-direction:column}.flex-item label{margin-bottom:.2rem}.flex-item textarea{margin-top:0}#generatedJson{background-color:#eee;padding:.5rem;border:1px solid #ddd;border-radius:4px;white-space:pre-wrap;word-wrap:break-word;font-size:.8rem}#loader{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background-color:rgba(255,255,255,.8);padding:1rem;border-radius:8px;z-index:10}#loader p{font-weight:700}#newListFormContainer{margin-top:1rem}#generateButton{background-color:#fc6;color:#fff}#generateButton:hover{background-color:#ffb833}#updateButton{background-color:#66b3ff;color:#fff}#updateButton:hover{background-color:#4da6ff}#decryptButton{background-color:#666;color:#fff}#decryptButton:hover{background-color:#555}@media(max-width:767px){#container{max-width:100%;padding:8px;margin:0}.flex-container{flex-direction:column;align-items:stretch}}</style>
 </head>
 <body>
  <div id="header-placeholder"></div>
- <script src="https://ompomz.github.io/header/loadHeader.js"></script>
  <h4>want peek you</h4><span>Nostr kind:30000 Event Manager</span>
- <div id="loader" style="display:none; text-align:center;">
- <p>処理中...</p>
- </div>
- <label for="npubInput">npubを入力:</label>
- <input type="text" id="npubInput" placeholder="npub1..." value="">
- <button onclick="fetchEvents()">イベントを取得</button> 
- <label for="dTagSelect">編集するリストを選択:</label>
- <select id="dTagSelect" disabled>
- <option value="">dタグを選択してください</option>
- </select> 
- <label for="nsecInput">nsecを入力:</label>
+ <div id="container">
+ <div id="loader" style="display:none;"><p>処理中...</p></div>
+ <label for="nsecInput">秘密鍵(nsec):</label>
  <input type="text" id="nsecInput" placeholder="nsec1..." value="">
- <button onclick="decryptContent()" id="decryptButton" disabled>復号</button>
+ <div id="pubkeyInfo" style="margin-top:10px;">
+ <p>公開鍵(npub):<span id="npubDisplay"></span></p>
+ <p>公開鍵(hex):<span id="hexDisplay"></span></p>
+ </div>
+<button class="container-button" onclick="fetchEvents()">読み込み</button>
+<button class="container-button" onclick="showNewListForm()">新規作成</button>
+ <label for="dTagSelect">編集したいリストを選択:</label>
+ <select id="dTagSelect" disabled>
+ <option value=""></option>
+ </select>
+<div id="newListFormContainer" style="display:none;">
+ <label for="newDTagInput">新しいリスト名(dタグ):</label>
+ <input type="text" id="newDTagInput" placeholder="例:my-friends-list">
+</div>
+ <button class="container-button" onclick="decryptContent()" id="decryptButton" disabled>リストを編集</button>
  <div class="flex-container">
  <div class="flex-item">
- <label for="contentInput">① 暗号化する公開鍵 (content):</label>
- <textarea id="contentInput" rows="5" placeholder="公開鍵をhex形式で入力 (改行、カンマ、スペース区切り)"></textarea>
+ <label for="contentInput">リストのメンバー(追加・削除):</label>
+ <textarea id="contentInput" rows="5" placeholder="公開鍵をhex形式で入力(改行、カンマ、スペース区切り)"></textarea>
  </div>
  <div class="flex-item">
- <label for="pTagsInput">② pタグに含める公開鍵:</label>
- <textarea id="pTagsInput" rows="5" placeholder="公開鍵をhex形式で入力 (改行、カンマ、スペース区切り)"></textarea>
+ <label for="pTagsInput">このリストのオーナー:</label>
+ <textarea id="pTagsInput" rows="5" placeholder="公開鍵をhex形式で入力(改行、カンマ、スペース区切り)"></textarea>
  </div>
  </div>
- <button onclick="generateEvent()" id="generateButton">JSONを生成</button>
+ <button class="container-button" onclick="generateEvent()" id="generateButton">変更内容を準備</button>
  <h5>生成されたJSON</h5>
- <pre id="generatedJson" style="min-height: 100px;"></pre>
- <button onclick="updateEvent()" id="updateButton" disabled>更新</button>
- <h5>ログ</h5>
- <div id="log"></div>
- <script src="https://cdn.jsdelivr.net/npm/nostr-tools@2.16.0/lib/nostr.bundle.js"></script>
- <script>
- const { getPublicKey, nip19, finalizeEvent, nip04 } = window.NostrTools;
- const relayUrl = 'wss://relay.nostr.band';
+ <pre id="generatedJson" style="min-height:100px;"></pre>
+ <button class="container-button" onclick="updateEvent()" id="updateButton" disabled>リストを更新する</button>
+ </div>
+<script src="https://unpkg.com/nostr-tools/lib/nostr.bundle.js"></script>
+<script>
+function getKeysFromNsec(nsec){
+ const { data:privkey } = nip19.decode(nsec);
+ const pubkey = getPublicKey(privkey);
+ return { privkey, pubkey };
+}
 
- let userNsec = '';
- let userPubkey = '';
- let currentEvent = null;
- let originalPubkeysFromPtag = [];
- let originalDtag = '';
+const { getPublicKey, nip19, finalizeEvent, nip04 } = window.NostrTools;
+const relayUrls = ['wss://relay.nostr.band', 'wss://nos.lol'];
 
- const npubInput = document.getElementById('npubInput');
- const nsecInput = document.getElementById('nsecInput');
- const dTagSelect = document.getElementById('dTagSelect');
- const contentInput = document.getElementById('contentInput');
- const pTagsInput = document.getElementById('pTagsInput');
- const generatedJsonPre = document.getElementById('generatedJson');
- const logDiv = document.getElementById('log');
- const decryptButton = document.getElementById('decryptButton');
- const generateButton = document.getElementById('generateButton');
- const updateButton = document.getElementById('updateButton');
- const loader = document.getElementById('loader');
+function connectWebSocket(onOpen, onMessage, onError, onClose){
+ let index = 0;
+ function tryConnect(){
+ const currentUrl = relayUrls[index];
+ const socket = new WebSocket(currentUrl);
+ socket.onopen =()=> {
+ connectedRelayUrl = currentUrl;
+ onOpen(socket);
+ };
+ socket.onmessage = onMessage;
+ socket.onerror =()=> {
+ index++;
+ if(index < relayUrls.length){
+ tryConnect();
+ } else {
+ onError();
+ }
+ };
+ socket.onclose = onClose;
+ }
+ tryConnect();
+}
 
- function showLoader() {
+const eventMap = new Map();
+let userNsec = '';
+let userPubkey = '';
+let currentEvent = null;
+let originalPubkeysFromPtag = [];
+let originalDtag = '';
+let connectedRelayUrl = '';
+
+const nsecInput = document.getElementById('nsecInput');
+const npubDisplay = document.getElementById('npubDisplay');
+const hexDisplay = document.getElementById('hexDisplay');
+const dTagSelect = document.getElementById('dTagSelect');
+const contentInput = document.getElementById('contentInput');
+const pTagsInput = document.getElementById('pTagsInput');
+const generatedJsonPre = document.getElementById('generatedJson');
+const logDiv = document.getElementById('log');
+const decryptButton = document.getElementById('decryptButton');
+const newListFormContainer = document.getElementById('newListFormContainer');
+const generateButton = document.getElementById('generateButton');
+const updateButton = document.getElementById('updateButton');
+const loader = document.getElementById('loader');
+
+nsecInput.addEventListener("input",()=> {
+ const nsecValue = nsecInput.value.trim();
+ if(nsecValue){
+ try {
+ const nsecDecoded = window.NostrTools.nip19.decode(nsecValue);
+ if(nsecDecoded.type === 'nsec'){
+ const seckey = nsecDecoded.data;
+ const pubkey = window.NostrTools.getPublicKey(seckey);
+ const npub = window.NostrTools.nip19.npubEncode(pubkey);
+ npubDisplay.textContent = npub;
+ hexDisplay.textContent = pubkey;
+ return;
+ }
+ } catch(e){
+ npubDisplay.textContent = '';
+ hexDisplay.textContent = '';
+ }
+ }
+ npubDisplay.textContent = '';
+ hexDisplay.textContent = '';
+});
+
+function showLoader(){
  loader.style.display = 'block';
- }
+}
 
- function hideLoader() {
+function hideLoader(){
  loader.style.display = 'none';
- }
+}
 
- function log(message, type = 'info') {
- const entry = document.createElement('p');
- entry.textContent = message;
- if (type === 'error') {
- entry.style.color = 'red';
- } else if (type === 'success') {
- entry.style.color = 'green';
+function log(message, type = 'info'){
+ if(type === 'error'){
+ console.error(message);
+ } else if(type === 'success'){
+ console.log(message);
+ } else {
+ console.log(message);
  }
- logDiv.prepend(entry);
- }
+}
 
- function parsePubkeys(input) {
+function parsePubkeys(input){
  return input.split(/[\n, \t]+/).map(key => key.trim()).filter(key => key.length === 64);
- }
+}
 
- function fetchEvents() {
+function showNewListForm(){
+ newListFormContainer.style.display = 'block';
+ dTagSelect.disabled = true;
+ dTagSelect.selectedIndex = 0;
+ decryptButton.disabled = true;
+ generateButton.disabled = false;
+}
+
+function fetchEvents(){
  showLoader();
  dTagSelect.innerHTML = '<option value="">dタグを選択してください</option>';
  dTagSelect.disabled = true;
  decryptButton.disabled = true;
-
- const npub = npubInput.value;
- if (!npub) {
- log('npubを入力してください。', 'error');
+ const nsec = nsecInput.value;
+ if(!nsec){
+ log('nsecを入力してください。', 'error');
  hideLoader();
  return;
  }
-
  try {
- const { data: pubkey } = nip19.decode(npub);
- const socket = new WebSocket(relayUrl);
+ const { privkey, pubkey } = getKeysFromNsec(nsec);
+ pTagsInput.value = pubkey;
  const events = [];
-
- socket.onopen = () => {
+ let currentSocket;
+ connectWebSocket(
+(socket)=> {
  log('WebSocket接続成功');
+ currentSocket = socket;
  const subscriptionId = "kind30000_sub";
- const filter = { kinds: [30000], authors: [pubkey] };
- socket.send(JSON.stringify(["REQ", subscriptionId, filter]));
- };
-
- socket.onmessage = (event) => {
+ const filter = { kinds:[30000], authors:[pubkey] };
+ currentSocket.send(JSON.stringify(["REQ", subscriptionId, filter]));
+ },
+(event)=> {
  const data = JSON.parse(event.data);
- if (data[0] === "EVENT") {
+ if(data[0] === "EVENT"){
  events.push(data[2]);
  }
- if (data[0] === "EOSE") {
- socket.close();
+ if(data[0] === "EOSE"){
  log('イベント取得完了。WebSocketを閉じます。');
- if (events.length === 0) {
+ if(currentSocket){
+ currentSocket.close();
+ }
+ if(events.length === 0){
  log('kind:30000のイベントが見つかりませんでした。', 'error');
  } else {
+ eventMap.clear();
  events.forEach(event => {
  const dTag = event.tags.find(tag => tag[0] === 'd');
- if (dTag) {
+ if(dTag){
+ eventMap.set(event.id, event);
  const option = document.createElement('option');
- option.value = JSON.stringify(event);
+ option.value = event.id;
  option.textContent = dTag[1];
  dTagSelect.appendChild(option);
  }
@@ -147,156 +205,159 @@
  }
  hideLoader();
  }
- };
-
- socket.onerror = (err) => {
- log('WebSocketエラー: ' + err.message, 'error');
+ },
+()=> {
+ log('すべてのリレー接続に失敗しました。', 'error');
  hideLoader();
- };
-
- socket.onclose = () => {
+ },
+()=> {
  log('WebSocket接続を閉じました。');
  hideLoader();
- };
- } catch (error) {
- log('イベント取得中にエラーが発生しました: ' + error.message, 'error');
+ }
+ );
+ } catch(error){
+ log('イベント取得中にエラーが発生しました:' + error.message, 'error');
  hideLoader();
  }
- }
+}
 
-
- async function decryptContent() {
+async function decryptContent(){
  showLoader();
  try {
- const selectedEventJson = dTagSelect.value;
- if (!selectedEventJson) {
+ const selectedId = dTagSelect.value;
+ if(!selectedId){
  log('イベントを選択してください。', 'error');
  hideLoader();
  return;
  }
- currentEvent = JSON.parse(selectedEventJson);
- 
+ currentEvent = eventMap.get(selectedId);
  const nsec = nsecInput.value;
- if (!nsec) {
+ if(!nsec){
  log('nsecを入力してください。', 'error');
  hideLoader();
  return;
  }
- const { data: privkey } = nip19.decode(nsec);
+ const { privkey, pubkey } = getKeysFromNsec(nsec);
  userNsec = privkey;
- userPubkey = getPublicKey(userNsec);
-
+ userPubkey = pubkey;
  const pubkeyFromEvent = currentEvent.pubkey;
- if (userPubkey !== pubkeyFromEvent) {
+ if(userPubkey !== pubkeyFromEvent){
  log('入力されたnsecは、このイベントの公開鍵と一致しません。', 'error');
  hideLoader();
  return;
  }
-
  originalPubkeysFromPtag = currentEvent.tags.filter(tag => tag[0] === 'p').map(tag => tag[1]);
  originalDtag = currentEvent.tags.find(tag => tag[0] === 'd')[1];
-
- if (originalPubkeysFromPtag.length === 0) {
+ if(originalPubkeysFromPtag.length === 0){
  log('pタグが見つからないため復号できません。', 'error');
  hideLoader();
  return;
  }
- 
  const pubkeyForDecryption = originalPubkeysFromPtag[0];
  const decryptedContent = await nip04.decrypt(privkey, pubkeyForDecryption, currentEvent.content);
- 
- // 修正箇所: 復号したコンテンツをそのまま表示
- contentInput.value = decryptedContent;
-
+ const decryptedData = JSON.parse(decryptedContent);
+ const pubkeys = decryptedData.map(tag => tag[1]);
+ contentInput.value = pubkeys.join('\n');
  pTagsInput.value = originalPubkeysFromPtag.join('\n');
- 
  log('イベントを正常に復号しました。');
  generateButton.disabled = false;
- } catch (error) {
- log('復号中にエラーが発生しました: ' + error.message, 'error');
+ } catch(error){
+ log('復号中にエラーが発生しました:' + error.message, 'error');
  } finally {
  hideLoader();
  }
- }
+}
 
- async function generateEvent() {
+async function generateEvent(){
  showLoader();
  try {
- if (!userNsec || !userPubkey) {
- log('まずイベントを復号してください。', 'error');
+ const nsec = nsecInput.value;
+ if(!nsec){
+ log('nsecを入力してください。', 'error');
  hideLoader();
  return;
  }
-
+ const { privkey, pubkey } = getKeysFromNsec(nsec);
  const newContentPubkeys = parsePubkeys(contentInput.value);
  const newPTagsPubkeys = parsePubkeys(pTagsInput.value);
-
- if (newContentPubkeys.length === 0 || newPTagsPubkeys.length === 0) {
+ if(newContentPubkeys.length === 0 || newPTagsPubkeys.length === 0){
  log('contentまたはpタグに含める公開鍵を入力してください。', 'error');
  hideLoader();
  return;
  }
-
- // 修正箇所: 暗号化する前に、コンテンツの書式を `[["p", "pubkey"]]` の形式に整える
+ const newDtag = document.getElementById('newDTagInput').value.trim();
+ const dtagToUse = newDtag || originalDtag;
+ if(!dtagToUse){
+ log('dタグ(リスト名)を入力するか、既存イベントを選択してください。', 'error');
+ hideLoader();
+ return;
+ }
  const contentTags = newContentPubkeys.map(pubkey => ["p", pubkey]);
- const encryptedContent = await nip04.encrypt(userNsec, newPTagsPubkeys[0], JSON.stringify(contentTags));
-
+ const encryptedContent = await nip04.encrypt(privkey, newPTagsPubkeys[0], JSON.stringify(contentTags));
  const event = {
- kind: 30000,
- created_at: Math.floor(Date.now() / 1000),
- tags: [
- ['d', originalDtag],
+ kind:30000,
+ created_at:Math.floor(Date.now()/ 1000),
+ tags:[
+ ['d', dtagToUse],
  ...newPTagsPubkeys.map(pubkey => ['p', pubkey]),
  ],
- content: encryptedContent,
+ content:encryptedContent,
  };
- 
- const signedEvent = finalizeEvent(event, userNsec);
+ const signedEvent = finalizeEvent(event, privkey);
  generatedJsonPre.textContent = JSON.stringify(signedEvent, null, 2);
  log('JSONイベントを生成しました。');
  updateButton.disabled = false;
- } catch (error) {
- log('JSON生成中にエラーが発生しました: ' + error.message, 'error');
+ } catch(error){
+ log('JSON生成中にエラーが発生しました:' + error.message, 'error');
  } finally {
  hideLoader();
  }
- }
+}
 
- async function updateEvent() {
+async function updateEvent(){
  showLoader();
  try {
  const event = JSON.parse(generatedJsonPre.textContent);
+ const relayUrl = connectedRelayUrl || relayUrls[0];
  const socket = new WebSocket(relayUrl);
-
- socket.onopen = () => {
+ socket.onopen =()=> {
+ log(`イベントを公開中のリレー:${relayUrl}`);
  log('イベント公開のためのWebSocket接続成功');
  socket.send(JSON.stringify(["EVENT", event]));
  };
-
- socket.onmessage = (msg) => {
+ socket.onmessage =(msg)=> {
  const data = JSON.parse(msg.data);
- if (data[0] === "OK") {
- if (data[2]) {
+ if(data[0] === "OK"){
+ if(data[2]){
  log('イベントは正常に公開されました！', 'success');
+ alert(`${relayUrl} に kind:30000 を送信しました！`);
+ contentInput.value = '';
+ pTagsInput.value = '';
+ newDTagInput.value = '';
+ dTagSelect.selectedIndex = 0;
+ decryptButton.disabled = true;
+ dTagSelect.disabled = true;
+ updateButton.disabled = true;
+ generateButton.disabled = true;
+ generatedJsonPre.textContent = '';
  } else {
- log('イベントの公開に失敗しました: ' + data[3], 'error');
+ log('イベントの公開に失敗しました:' + data[3], 'error');
  }
  socket.close();
  }
  };
-
- socket.onerror = (err) => {
- log('イベント公開時のWebSocketエラー: ' + err.message, 'error');
+ socket.onerror =(err)=> {
+ log('イベント公開時のWebSocketエラー:' + err.message, 'error');
  socket.close();
  hideLoader();
  };
- 
- } catch (error) {
- log('イベント更新中にエラーが発生しました: ' + error.message, 'error');
+ } catch(error){
+ log('イベント更新中にエラーが発生しました:' + error.message, 'error');
  } finally {
  hideLoader();
  }
- }
- </script>
+}
+</script>
+<script src="https://ompomz.github.io/header/loadHeader.js"></script>
 </body>
 </html>
