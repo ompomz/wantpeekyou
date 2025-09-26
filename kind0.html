@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>kind:0取得ツール</title>
+  <script src="https://cdn.jsdelivr.net/npm/nostr-tools@2.1.2/lib/nostr.bundle.min.js"></script>
+  <style>
+    textarea, button { margin: 0; padding: 0.25rem; }
+    #input-container { display: flex; gap: 0.5rem; align-items: flex-end; }
+    table { border-collapse: collapse; width: 90%; }
+    th, td { border: 1px solid #ccc; padding: 0.25rem; text-align: left; }
+    th { text-align: center; }
+    th button { margin:0rem 0.5rem 0rem 0.5rem; }
+  </style>
+</head>
+<body>
+<p>kind:0取得</p>
+<div id="input-container">
+<textarea id="pubkey-input" rows="4" cols="80" placeholder="hexまたはnpubを改行またはカンマで区切って入力"></textarea>
+<button onclick="getProfiles()">取得</button></div>
+<table id="profile-table">
+<thead>
+<tr>
+<th>name<button onclick="copyColumn(0)">コピー</button></th>
+<th>display_name<button onclick="copyColumn(1)">コピー</button></th>
+<th>hex<button onclick="copyColumn(2)">コピー</button></th>
+<th>npub<button onclick="copyColumn(3)">コピー</button></th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+<script>
+    const relayURL = "wss://relay.nostr.band";
+
+    function decodeNpub(npub) {
+      try {
+        return window.NostrTools.nip19.decode(npub).data;
+      } catch {
+        return null;
+      }
+    }
+
+    function getProfiles() {
+      const input = document.getElementById("pubkey-input").value;
+      const keys = input.split(/[\s,]+/).filter(Boolean);
+      const pubkeys = keys.map(k => k.startsWith("npub1") ? decodeNpub(k) : k).filter(k => /^[a-f0-9]{64}$/i.test(k));
+
+      if (pubkeys.length === 0) return alert("有効な公開鍵がありません");
+
+      document.querySelector("#profile-table tbody").innerHTML = '';
+      const socket = new WebSocket(relayURL);
+
+      socket.onopen = () => {
+        const req = ["REQ", "profile-req", { kinds: [0], authors: pubkeys }];
+        socket.send(JSON.stringify(req));
+      };
+
+      socket.onmessage = (event) => {
+        const [type,, eventData] = JSON.parse(event.data);
+        if (type === "EVENT") {
+          try {
+            const profile = JSON.parse(eventData.content);
+            const name = profile.name || "";
+            const displayName = profile.display_name || "";
+            const hex = eventData.pubkey;
+            const npub = window.NostrTools.nip19.npubEncode(hex);
+
+            const row = document.createElement("tr");
+            row.innerHTML = `<td>${name}</td><td>${displayName}</td><td>${hex}</td><td>${npub}</td>`;
+            document.querySelector("#profile-table tbody").appendChild(row);
+          } catch {
+            console.warn("プロフィール解析失敗");
+          }
+        }
+      };
+    }
+
+    function copyColumn(index) {
+      const rows = document.querySelectorAll(`#profile-table tbody tr`);
+      const values = Array.from(rows).map(row => row.cells[index].textContent).join("\n");
+      navigator.clipboard.writeText(values).then(() => alert("コピーしました！"));
+    }
+  </script>
+</body>
+</html>
