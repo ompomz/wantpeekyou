@@ -45,344 +45,589 @@
  <button class="container-button" onclick="updateEvent()" id="updateButton" disabled>リストを更新する</button>
  </div>
 <script src="https://unpkg.com/nostr-tools/lib/nostr.bundle.js"></script>
-  <script>
-  const getFromExtensionButton = document.getElementById('getFromExtensionButton');
-
-  getFromExtensionButton.addEventListener('click', async () => {
-    try {
-      if (!window.nostr || typeof window.nostr.getPublicKey !== 'function') {
-        alert('NIP-07拡張機能が見つかりません。拡張を有効化して再試行してください。');
-        return;
-      }
-      // 拡張から公開鍵(hex)取得
-      const pubkeyHex = await window.nostr.getPublicKey();
-
-      // npubに変換して表示
-      const npub = window.NostrTools.nip19.npubEncode(pubkeyHex);
-      npubDisplay.textContent = npub;
-      hexDisplay.textContent = pubkeyHex;
-
-      // 入力済みnsecは無効化（混乱防止）
-      nsecInput.value = '';
-      log('拡張機能から公開鍵を取得しました。');
-    } catch (e) {
-      log('拡張機能からの取得に失敗しました: ' + e.message, 'error');
-    }
-  });
-</script>
 <script>
-function getKeysFromNsec(nsec){
- const { data:privkey } = nip19.decode(nsec);
- const pubkey = getPublicKey(privkey);
- return { privkey, pubkey };
-}
+ const nsecInput = document.getElementById('nsecInput');
+ const npubDisplay = document.getElementById('npubDisplay');
+ const hexDisplay = document.getElementById('hexDisplay');
+ const dTagSelect = document.getElementById('dTagSelect');
+ const contentInput = document.getElementById('contentInput');
+ const pTagsInput = document.getElementById('pTagsInput');
+ const generatedJsonPre = document.getElementById('generatedJson');
+ const logDiv = document.getElementById('log');
+ const decryptButton = document.getElementById('decryptButton');
+ const newListFormContainer = document.getElementById('newListFormContainer');
+ const generateButton = document.getElementById('generateButton');
+ const updateButton = document.getElementById('updateButton');
+ const loader = document.getElementById('loader');
+ const getFromExtensionButton = document.getElementById('getFromExtensionButton');
+ const newDTagInput = document.getElementById('newDTagInput');
 
-const { getPublicKey, nip19, finalizeEvent, nip04 } = window.NostrTools;
-const relayUrls = ['wss://relay.nostr.band', 'wss://nos.lol'];
-
-function connectWebSocket(onOpen, onMessage, onError, onClose){
- let index = 0;
- function tryConnect(){
- const currentUrl = relayUrls[index];
- const socket = new WebSocket(currentUrl);
- socket.onopen =()=> {
- connectedRelayUrl = currentUrl;
- onOpen(socket);
- };
- socket.onmessage = onMessage;
- socket.onerror =()=> {
- index++;
- if(index < relayUrls.length){
- tryConnect();
- } else {
- onError();
- }
- };
- socket.onclose = onClose;
- }
- tryConnect();
-}
-
-const eventMap = new Map();
-let userNsec = '';
-let userPubkey = '';
-let currentEvent = null;
-let originalPubkeysFromPtag = [];
-let originalDtag = '';
-let connectedRelayUrl = '';
-
-const nsecInput = document.getElementById('nsecInput');
-const npubDisplay = document.getElementById('npubDisplay');
-const hexDisplay = document.getElementById('hexDisplay');
-const dTagSelect = document.getElementById('dTagSelect');
-const contentInput = document.getElementById('contentInput');
-const pTagsInput = document.getElementById('pTagsInput');
-const generatedJsonPre = document.getElementById('generatedJson');
-const logDiv = document.getElementById('log');
-const decryptButton = document.getElementById('decryptButton');
-const newListFormContainer = document.getElementById('newListFormContainer');
-const generateButton = document.getElementById('generateButton');
-const updateButton = document.getElementById('updateButton');
-const loader = document.getElementById('loader');
-
-nsecInput.addEventListener("input",()=> {
- const nsecValue = nsecInput.value.trim();
- if(nsecValue){
- try {
- const nsecDecoded = window.NostrTools.nip19.decode(nsecValue);
- if(nsecDecoded.type === 'nsec'){
- const seckey = nsecDecoded.data;
- const pubkey = window.NostrTools.getPublicKey(seckey);
- const npub = window.NostrTools.nip19.npubEncode(pubkey);
- npubDisplay.textContent = npub;
- hexDisplay.textContent = pubkey;
+ if (!npubDisplay || !hexDisplay || !nsecInput) {
+ console.error('必須のDOM要素が見つかりません。スクリプトを正しい位置に配置してください。');
  return;
  }
- } catch(e){
+
+ const { nip19, getPublicKey, finalizeEvent, nip04 } = window.NostrTools || {};
+ const relayUrls = ['wss://relay.nostr.band', 'wss://nos.lol'];
+ let connectedRelayUrl = '';
+ const eventMap = new Map();
+ let currentEvent = null;
+ let originalPubkeysFromPtag = [];
+ let originalDtag = '';
+
+ function showLoader() {
+ if (loader) loader.style.display = 'block';
+ }
+
+ function hideLoader() {
+ if (loader) loader.style.display = 'none';
+ }
+
+ function log(message, type = 'info') {
+ try {
+ if (type === 'error') console.error(message);
+ else if (type === 'success') console.log(message);
+ else console.log(message);
+
+ if (logDiv) {
+ const p = document.createElement('div');
+ p.textContent = message;
+ p.style.color = type === 'error' ? 'crimson' : type === 'success' ? 'green' : 'inherit';
+ logDiv.appendChild(p);
+ logDiv.scrollTop = logDiv.scrollHeight;
+ }
+ } catch (e) {
+ // エラーロギング時のエラーは無視
+ }
+ }
+
+ function parsePubkeys(input) {
+ if (!input) return [];
+ return input.split(/[\n, \t,]+/).map(k => k.trim()).filter(k => k.length === 64);
+ }
+
+ function getKeysFromNsec(nsec) {
+ if (!nip19 || !getPublicKey) throw new Error('nostr-tools が未ロードです');
+ const decoded = nip19.decode(nsec);
+ if (decoded.type !== 'nsec') throw new Error('nsecではありません');
+ const privkey = decoded.data;
+ const pubkey = getPublicKey(privkey);
+ return { privkey, pubkey };
+ }
+
+ function connectWebSocket(onOpen, onMessage, onError, onClose) {
+ let index = 0;
+ let closed = false;
+
+ function tryConnect() {
+ if (closed) return;
+ const url = relayUrls[index];
+ let socket;
+
+ try {
+ socket = new WebSocket(url);
+ } catch (e) {
+ index++;
+ if (index < relayUrls.length) tryConnect();
+ else onError && onError(e);
+ return;
+ }
+
+ socket.onopen = () => {
+ connectedRelayUrl = url;
+ onOpen && onOpen(socket);
+ };
+
+ socket.onmessage = (ev) => onMessage && onMessage(ev);
+
+ socket.onerror = (err) => {
+ try {
+ socket.close();
+ } catch (e) {
+ // close時のエラーは無視
+ }
+ index++;
+ if (index < relayUrls.length) tryConnect();
+ else onError && onError(err);
+ };
+
+ socket.onclose = (ev) => {
+ onClose && onClose(ev);
+ };
+ }
+
+ tryConnect();
+ return {
+ close: () => {
+ closed = true;
+ }
+ };
+ }
+
+ async function signEventWithPreferExtension(event, privkey) {
+ try {
+ if (window.nostr && typeof window.nostr.signEvent === 'function') {
+ const res = await window.nostr.signEvent(event);
+ if (res && res.id && res.sig && res.pubkey) return res;
+ if (res && res.sig) {
+ return {
+ ...event,
+ id: event.id || '',
+ sig: res.sig,
+ pubkey: res.pubkey || event.pubkey || ''
+ };
+ }
+ }
+ } catch (e) {
+ console.warn('extension signEvent failed:', e);
+ }
+ return finalizeEvent(event, privkey);
+ }
+
+ async function encryptPreferExtension(theirPubkeyHex, plaintext, privkey) {
+ try {
+ if (window.nostr && window.nostr.nip04 && typeof window.nostr.nip04.encrypt === 'function') {
+ try {
+ return await window.nostr.nip04.encrypt(theirPubkeyHex, plaintext);
+ } catch (e) {
+ try {
+ // 拡張機能が引数の順序を逆にする可能性を考慮 (非標準)
+ return await window.nostr.nip04.encrypt(plaintext, theirPubkeyHex);
+ } catch (e2) {
+ throw e; // 最初の拡張機能エラーを再スロー
+ }
+ }
+ }
+ } catch (e) {
+ console.warn('extension nip04.encrypt failed:', e);
+ }
+ return await nip04.encrypt(privkey, theirPubkeyHex, plaintext);
+ }
+
+ async function decryptPreferExtension(theirPubkeyHex, ciphertext, privkey) {
+ try {
+ if (window.nostr && window.nostr.nip04 && typeof window.nostr.nip04.decrypt === 'function') {
+ try {
+ return await window.nostr.nip04.decrypt(theirPubkeyHex, ciphertext);
+ } catch (e) {
+ try {
+ // 拡張機能が引数の順序を逆にする可能性を考慮 (非標準)
+ return await window.nostr.nip04.decrypt(ciphertext, theirPubkeyHex);
+ } catch (e2) {
+ throw e; // 最初の拡張機能エラーを再スロー
+ }
+ }
+ }
+ } catch (e) {
+ console.warn('extension nip04.decrypt failed:', e);
+ }
+ return await nip04.decrypt(privkey, theirPubkeyHex, ciphertext);
+ }
+
+ if (getFromExtensionButton) {
+ getFromExtensionButton.addEventListener('click', async () => {
+ try {
+ if (!window.nostr || typeof window.nostr.getPublicKey !== 'function') {
+ alert('NIP-07対応の拡張機能が見つかりません。拡張を有効化して再試行してください。');
+ return;
+ }
+ const pubkeyHex = await window.nostr.getPublicKey();
+ if (!pubkeyHex || typeof pubkeyHex !== 'string') throw new Error('公開鍵の取得に失敗しました');
+
+ const npub = nip19 && nip19.npubEncode ? nip19.npubEncode(pubkeyHex) : pubkeyHex;
+ npubDisplay.textContent = npub || '';
+ hexDisplay.textContent = pubkeyHex || '';
+
+ try {
+ nsecInput.value = '';
+ nsecInput.disabled = true;
+ } catch (e) {
+ // disable失敗は無視
+ }
+ log('拡張機能から公開鍵を取得しました。');
+ } catch (e) {
+ log('拡張機能からの取得に失敗しました: ' + (e && e.message ? e.message : e), 'error');
+ }
+ });
+ }
+
+ if (nsecInput) {
+ nsecInput.addEventListener('input', () => {
+ const nsecValue = nsecInput.value.trim();
+ if (!nsecValue) {
  npubDisplay.textContent = '';
  hexDisplay.textContent = '';
+ nsecInput.disabled = false;
+ return;
  }
+
+ try {
+ if (nip19) {
+ const decoded = nip19.decode(nsecValue);
+ if (decoded && decoded.type === 'nsec') {
+ const seckey = decoded.data;
+ const pubkey = getPublicKey(seckey);
+ const npub = nip19.npubEncode(pubkey);
+ npubDisplay.textContent = npub;
+ hexDisplay.textContent = pubkey;
+ nsecInput.disabled = false;
+ return;
+ }
+ }
+ } catch (e) {
+ // decode失敗は無視
  }
  npubDisplay.textContent = '';
  hexDisplay.textContent = '';
-});
-
-function showLoader(){
- loader.style.display = 'block';
-}
-
-function hideLoader(){
- loader.style.display = 'none';
-}
-
-function log(message, type = 'info'){
- if(type === 'error'){
- console.error(message);
- } else if(type === 'success'){
- console.log(message);
- } else {
- console.log(message);
+ });
  }
-}
 
-function parsePubkeys(input){
- return input.split(/[\n, \t]+/).map(key => key.trim()).filter(key => key.length === 64);
-}
-
-function showNewListForm(){
- newListFormContainer.style.display = 'block';
- dTagSelect.disabled = true;
- dTagSelect.selectedIndex = 0;
- decryptButton.disabled = true;
- generateButton.disabled = false;
-}
-
-function fetchEvents(){
+ async function fetchEvents() {
  showLoader();
- dTagSelect.innerHTML = '<option value="">dタグを選択してください</option>';
- dTagSelect.disabled = true;
- decryptButton.disabled = true;
- const nsec = nsecInput.value;
- if(!nsec){
+ dTagSelect && (dTagSelect.innerHTML = '<option value="">dタグを選択してください</option>');
+ if (dTagSelect) dTagSelect.disabled = true;
+ if (decryptButton) decryptButton.disabled = true;
+
+ let pubkey;
+ try {
+ if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
+ pubkey = await window.nostr.getPublicKey();
+ } else {
+ const nsec = nsecInput.value.trim();
+ if (!nsec) {
  log('nsecを入力してください。', 'error');
  hideLoader();
  return;
  }
- try {
- const { privkey, pubkey } = getKeysFromNsec(nsec);
- pTagsInput.value = pubkey;
+ const keys = getKeysFromNsec(nsec);
+ pubkey = keys.pubkey;
+ pTagsInput && (pTagsInput.value = pubkey); // 自分の公開鍵をpTagsInputにセット
+ }
+ } catch (e) {
+ log('公開鍵取得に失敗しました: ' + (e && e.message ? e.message : e), 'error');
+ hideLoader();
+ return;
+ }
+
  const events = [];
- let currentSocket;
+ let currentSocket = null;
+
  connectWebSocket(
-(socket)=> {
+ (socket) => {
  log('WebSocket接続成功');
  currentSocket = socket;
  const subscriptionId = "kind30000_sub";
- const filter = { kinds:[30000], authors:[pubkey] };
- currentSocket.send(JSON.stringify(["REQ", subscriptionId, filter]));
+ const filter = {
+ kinds: [30000],
+ authors: [pubkey]
+ };
+ try {
+ socket.send(JSON.stringify(["REQ", subscriptionId, filter]));
+ } catch (e) {
+ log('REQ送信に失敗しました: ' + e.message, 'error');
+ }
  },
-(event)=> {
- const data = JSON.parse(event.data);
- if(data[0] === "EVENT"){
- events.push(data[2]);
- }
- if(data[0] === "EOSE"){
+ (ev) => {
+ try {
+ const data = JSON.parse(ev.data);
+ if (data[0] === "EVENT") events.push(data[2]);
+ 
+ if (data[0] === "EOSE") {
  log('イベント取得完了。WebSocketを閉じます。');
- if(currentSocket){
- currentSocket.close();
+ try {
+ currentSocket && currentSocket.close();
+ } catch (e) {
+ // close時のエラーは無視
  }
- if(events.length === 0){
+ 
+ if (events.length === 0) {
  log('kind:30000のイベントが見つかりませんでした。', 'error');
  } else {
  eventMap.clear();
- events.forEach(event => {
- const dTag = event.tags.find(tag => tag[0] === 'd');
- if(dTag){
- eventMap.set(event.id, event);
+ events.forEach(e => {
+ const dTag = e.tags.find(t => t[0] === 'd');
+ if (dTag) {
+ eventMap.set(e.id, e);
+ if (dTagSelect) {
  const option = document.createElement('option');
- option.value = event.id;
- option.textContent = dTag[1];
+ option.value = e.id;
+ option.textContent = dTag[1] || e.id;
  dTagSelect.appendChild(option);
  }
+ }
  });
- dTagSelect.disabled = false;
- decryptButton.disabled = false;
+ if (dTagSelect) dTagSelect.disabled = false;
+ if (decryptButton) decryptButton.disabled = false;
  log(`${events.length}件のイベントを取得しました。`);
  }
  hideLoader();
  }
+ } catch (err) {
+ console.warn('message parse error:', err);
+ }
  },
-()=> {
+ () => {
  log('すべてのリレー接続に失敗しました。', 'error');
  hideLoader();
  },
-()=> {
+ () => {
  log('WebSocket接続を閉じました。');
  hideLoader();
  }
  );
- } catch(error){
- log('イベント取得中にエラーが発生しました:' + error.message, 'error');
- hideLoader();
  }
-}
 
-async function decryptContent(){
+ async function decryptContent() {
  showLoader();
  try {
- const selectedId = dTagSelect.value;
- if(!selectedId){
+ const selectedId = dTagSelect ? dTagSelect.value : '';
+ if (!selectedId) {
  log('イベントを選択してください。', 'error');
  hideLoader();
  return;
  }
+
  currentEvent = eventMap.get(selectedId);
- const nsec = nsecInput.value;
- if(!nsec){
- log('nsecを入力してください。', 'error');
+ if (!currentEvent) {
+ log('イベント情報が見つかりません。', 'error');
  hideLoader();
  return;
  }
- const { privkey, pubkey } = getKeysFromNsec(nsec);
- userNsec = privkey;
- userPubkey = pubkey;
- const pubkeyFromEvent = currentEvent.pubkey;
- if(userPubkey !== pubkeyFromEvent){
- log('入力されたnsecは、このイベントの公開鍵と一致しません。', 'error');
+
+ let privkey = '';
+ let userPubkey = '';
+ try {
+ if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
+ userPubkey = await window.nostr.getPublicKey();
+ } else {
+ const nsec = nsecInput.value.trim();
+ if (!nsec) {
+ log('拡張機能がない場合はnsecが必要です。', 'error');
  hideLoader();
  return;
  }
- originalPubkeysFromPtag = currentEvent.tags.filter(tag => tag[0] === 'p').map(tag => tag[1]);
- originalDtag = currentEvent.tags.find(tag => tag[0] === 'd')[1];
- if(originalPubkeysFromPtag.length === 0){
+ const keys = getKeysFromNsec(nsec);
+ privkey = keys.privkey;
+ userPubkey = keys.pubkey;
+ }
+ } catch (e) {
+ log('自身の鍵取得に失敗しました: ' + (e && e.message ? e.message : e), 'error');
+ hideLoader();
+ return;
+ }
+
+ if (userPubkey !== currentEvent.pubkey) {
+ log('入力された鍵は、このイベントの公開鍵と一致しません。', 'error');
+ hideLoader();
+ return;
+ }
+
+ originalPubkeysFromPtag = currentEvent.tags.filter(t => t[0] === 'p').map(t => t[1]);
+ const dTagObj = currentEvent.tags.find(t => t[0] === 'd');
+ originalDtag = dTagObj ? dTagObj[1] : '';
+
+ if (originalPubkeysFromPtag.length === 0) {
  log('pタグが見つからないため復号できません。', 'error');
  hideLoader();
  return;
  }
+
  const pubkeyForDecryption = originalPubkeysFromPtag[0];
- const decryptedContent = await nip04.decrypt(privkey, pubkeyForDecryption, currentEvent.content);
+ const decryptedContent = await decryptPreferExtension(pubkeyForDecryption, currentEvent.content, privkey);
+ 
+ // 復号されたコンテンツは ['p', pubkey] の配列のJSON文字列
  const decryptedData = JSON.parse(decryptedContent);
  const pubkeys = decryptedData.map(tag => tag[1]);
- contentInput.value = pubkeys.join('\n');
- pTagsInput.value = originalPubkeysFromPtag.join('\n');
+
+ contentInput && (contentInput.value = pubkeys.join('\n'));
+ pTagsInput && (pTagsInput.value = originalPubkeysFromPtag.join('\n'));
+
  log('イベントを正常に復号しました。');
- generateButton.disabled = false;
- } catch(error){
- log('復号中にエラーが発生しました:' + error.message, 'error');
+ if (generateButton) generateButton.disabled = false;
+
+ } catch (error) {
+ log('復号中にエラーが発生しました:' + (error && error.message ? error.message : error), 'error');
  } finally {
  hideLoader();
  }
-}
+ }
 
-async function generateEvent(){
+ async function generateEvent() {
  showLoader();
  try {
- const nsec = nsecInput.value;
- if(!nsec){
- log('nsecを入力してください。', 'error');
+ let privkey = '';
+ let pubkey = '';
+ try {
+ if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
+ pubkey = await window.nostr.getPublicKey();
+ } else {
+ const nsec = nsecInput.value.trim();
+ if (!nsec) {
+ log('拡張機能がない場合はnsecが必要です。', 'error');
  hideLoader();
  return;
  }
- const { privkey, pubkey } = getKeysFromNsec(nsec);
- const newContentPubkeys = parsePubkeys(contentInput.value);
- const newPTagsPubkeys = parsePubkeys(pTagsInput.value);
- if(newContentPubkeys.length === 0 || newPTagsPubkeys.length === 0){
+ const keys = getKeysFromNsec(nsec);
+ privkey = keys.privkey;
+ pubkey = keys.pubkey;
+ }
+ } catch (e) {
+ log('公開鍵の取得に失敗しました: ' + (e && e.message ? e.message : e), 'error');
+ hideLoader();
+ return;
+ }
+
+ const newContentPubkeys = parsePubkeys(contentInput ? contentInput.value : '');
+ const newPTagsPubkeys = parsePubkeys(pTagsInput ? pTagsInput.value : '');
+
+ if (newContentPubkeys.length === 0 || newPTagsPubkeys.length === 0) {
  log('contentまたはpタグに含める公開鍵を入力してください。', 'error');
  hideLoader();
  return;
  }
- const newDtag = document.getElementById('newDTagInput').value.trim();
- const dtagToUse = newDtag || originalDtag;
- if(!dtagToUse){
+
+ const dtagToUse = (newDTagInput && newDTagInput.value.trim()) || originalDtag;
+ if (!dtagToUse) {
  log('dタグ(リスト名)を入力するか、既存イベントを選択してください。', 'error');
  hideLoader();
  return;
  }
- const contentTags = newContentPubkeys.map(pubkey => ["p", pubkey]);
- const encryptedContent = await nip04.encrypt(privkey, newPTagsPubkeys[0], JSON.stringify(contentTags));
+
+ // contentのタグをJSONとして暗号化
+ const contentTags = newContentPubkeys.map(k => ['p', k]);
+ const recipientPubkeyForEncryption = newPTagsPubkeys[0]; // contentの暗号化は最初のpタグの公開鍵に対して行う
+ const encryptedContent = await encryptPreferExtension(recipientPubkeyForEncryption, JSON.stringify(contentTags), privkey);
+
  const event = {
- kind:30000,
- created_at:Math.floor(Date.now()/ 1000),
- tags:[
+ kind: 30000,
+ created_at: Math.floor(Date.now() / 1000),
+ tags: [
  ['d', dtagToUse],
- ...newPTagsPubkeys.map(pubkey => ['p', pubkey]),
+ ...newPTagsPubkeys.map(k => ['p', k]) // pタグは公開鍵のリスト
  ],
- content:encryptedContent,
+ content: encryptedContent,
  };
- const signedEvent = finalizeEvent(event, privkey);
- generatedJsonPre.textContent = JSON.stringify(signedEvent, null, 2);
+
+ const signedEvent = await signEventWithPreferExtension(event, privkey);
+ generatedJsonPre && (generatedJsonPre.textContent = JSON.stringify(signedEvent, null, 2));
+
  log('JSONイベントを生成しました。');
- updateButton.disabled = false;
- } catch(error){
- log('JSON生成中にエラーが発生しました:' + error.message, 'error');
+ if (updateButton) updateButton.disabled = false;
+
+ } catch (error) {
+ log('JSON生成中にエラーが発生しました:' + (error && error.message ? error.message : error), 'error');
  } finally {
  hideLoader();
  }
-}
+ }
 
-async function updateEvent(){
+ async function updateEvent() {
  showLoader();
  try {
+ if (!generatedJsonPre || !generatedJsonPre.textContent) {
+ log('送信するイベントがありません。', 'error');
+ hideLoader();
+ return;
+ }
+
  const event = JSON.parse(generatedJsonPre.textContent);
  const relayUrl = connectedRelayUrl || relayUrls[0];
  const socket = new WebSocket(relayUrl);
- socket.onopen =()=> {
+
+ socket.onopen = () => {
  log(`イベントを公開中のリレー:${relayUrl}`);
  log('イベント公開のためのWebSocket接続成功');
+ try {
  socket.send(JSON.stringify(["EVENT", event]));
+ } catch (e) {
+ log('EVENT送信に失敗しました: ' + e.message, 'error');
+ socket.close();
+ }
  };
- socket.onmessage =(msg)=> {
+
+ socket.onmessage = (msg) => {
+ try {
  const data = JSON.parse(msg.data);
- if(data[0] === "OK"){
- if(data[2]){
+ if (data[0] === "OK") {
+ if (data[2]) {
  log('イベントは正常に公開されました！', 'success');
  alert(`${relayUrl} に kind:30000 を送信しました！`);
- contentInput.value = '';
- pTagsInput.value = '';
- newDTagInput.value = '';
- dTagSelect.selectedIndex = 0;
- decryptButton.disabled = true;
- dTagSelect.disabled = true;
- updateButton.disabled = true;
- generateButton.disabled = true;
- generatedJsonPre.textContent = '';
+ // 成功後のUIリセット
+ if (contentInput) contentInput.value = '';
+ if (pTagsInput) pTagsInput.value = '';
+ if (newDTagInput) newDTagInput.value = '';
+ if (dTagSelect) dTagSelect.selectedIndex = 0;
+ if (decryptButton) decryptButton.disabled = true;
+ if (dTagSelect) dTagSelect.disabled = true;
+ if (updateButton) updateButton.disabled = true;
+ if (generateButton) generateButton.disabled = true;
+ if (generatedJsonPre) generatedJsonPre.textContent = '';
  } else {
- log('イベントの公開に失敗しました:' + data[3], 'error');
+ log('イベントの公開に失敗しました:' + (data[3] || 'unknown'), 'error');
  }
  socket.close();
+ }
+ } catch (e) {
+ console.warn('updateEvent message parse error', e);
  }
  };
- socket.onerror =(err)=> {
- log('イベント公開時のWebSocketエラー:' + err.message, 'error');
+
+ socket.onerror = (err) => {
+ log('イベント公開時のWebSocketエラー:' + (err && err.message ? err.message : err), 'error');
+ try {
  socket.close();
+ } catch (e) {
+ // close時のエラーは無視
+ }
  hideLoader();
  };
- } catch(error){
- log('イベント更新中にエラーが発生しました:' + error.message, 'error');
+
+ } catch (error) {
+ log('イベント更新中にエラーが発生しました:' + (error && error.message ? error.message : error), 'error');
  } finally {
  hideLoader();
  }
-}
+ }
+
+ const fetchButton = document.getElementById('fetchEventsButton');
+ if (fetchButton) fetchButton.addEventListener('click', fetchEvents);
+
+ if (decryptButton) decryptButton.addEventListener('click', decryptContent);
+
+ const genBtn = document.getElementById('generateButton');
+ if (genBtn) genBtn.addEventListener('click', generateEvent);
+
+ const updBtn = document.getElementById('updateButton');
+ if (updBtn) updBtn.addEventListener('click', updateEvent);
+
+ // グローバルに公開
+ window.myNostrList = {
+ fetchEvents,
+ decryptContent,
+ generateEvent,
+ updateEvent,
+ };
+
+ // 初期処理
+ (function() {
+ try {
+ const nsecVal = nsecInput.value && nsecInput.value.trim();
+ if (nsecVal) {
+ try {
+ const decoded = nip19.decode(nsecVal);
+ if (decoded && decoded.type === 'nsec') {
+ const keys = getKeysFromNsec(nsecVal);
+ npubDisplay.textContent = nip19.npubEncode(keys.pubkey);
+ hexDisplay.textContent = keys.pubkey;
+ }
+ } catch (e) {
+ // 初期値のデコード失敗は無視
+ }
+ }
+ } catch (e) {
+ // 全体の初期処理エラーは無視
+ }
+ })();
 </script>
 <script src="https://ompomz.github.io/header/loadHeader.js"></script>
 </body>
