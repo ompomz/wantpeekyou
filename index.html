@@ -4,21 +4,196 @@
  <meta charset="UTF-8">
  <meta name="viewport" content="width=device-width, initial-scale=1.0">
  <title>want peek you</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";padding:.5rem;line-height:1.3;font-weight:400;background-color:#f7f7f7;color:#666;font-size:.9rem}#container{max-width:600px;margin-left:.5rem;margin-right:auto;padding:.5rem .5rem 0rem .5rem}h4{font-size:1.2rem;margin:0rem 0rem .5rem 0rem;color:#666}h5{font-size:1rem;margin-top:1rem}p{margin:0}a{color:#666;text-decoration:none}input,textarea,select{font-size:.9rem;padding:.5rem .3rem;border:1px solid #ddd;border-radius:4px;color:#666;background-color:#fff;cursor:pointer;transition:background-color 0.3s,color 0.3s;width:100%;margin-top:.5rem}input[type="checkbox"]{padding:0;margin:0;vertical-align:middle;appearance:checkbox;-webkit-appearance:checkbox}textarea{resize:vertical}.container-button{font-size:.8rem;font-weight:700;padding:.25rem 1rem;margin:.5rem .2rem;border:0 solid #ddd;border-radius:999px;color:#fff;background-color:#666;white-space:nowrap;cursor:pointer;transition:background-color 0.3s,color 0.3s}.container-button:hover{background-color:#555}.flex-container{display:flex;align-items:flex-start;gap:.5rem;margin:.5rem 0rem}.flex-item{flex-grow:1;display:flex;flex-direction:column}.flex-item label{margin-bottom:.2rem}.flex-item textarea{margin-top:0}#generatedJson{background-color:#eee;padding:.5rem;border:1px solid #ddd;border-radius:4px;white-space:pre-wrap;word-wrap:break-word;font-size:.8rem}#loader{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background-color:rgba(255,255,255,.8);padding:1rem;border-radius:8px;z-index:10}#loader p{font-weight:700}#newListFormContainer{margin-top:1rem}#generateButton{background-color:#fc6;color:#fff}#generateButton:hover{background-color:#ffb833}#updateButton{background-color:#66b3ff;color:#fff}#updateButton:hover{background-color:#4da6ff}#decryptButton{background-color:#666;color:#fff}#decryptButton:hover{background-color:#555}@media(max-width:767px){#container{max-width:100%;padding:8px;margin:0}.flex-container{flex-direction:column;align-items:stretch}}</style>
+ <style>
+/* 1. CSSカスタムプロパティの定義 (一貫性の向上) */
+:root {
+  --color-text-main: #666;
+  --color-bg-light: #f7f7f7;
+  --color-border: #ddd;
+  --color-highlight-bg: #f0f0f0; /* 公開鍵情報などの背景 */
+  --spacing-sm: .5rem;
+  --spacing-md: 1rem;
+  --font-size-base: .9rem;
+}
+
+/* リセット */
+*{margin:0;padding:0;box-sizing:border-box}
+
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+  padding:var(--spacing-sm);
+  line-height:1.3;
+  font-weight:400;
+  background-color:var(--color-bg-light);
+  color:var(--color-text-main);
+  font-size:var(--font-size-base);
+}
+
+/* 2. #container の中央寄せとパディングの統一 */
+#container{
+  max-width:600px;
+  margin: 0 auto; 
+  padding:var(--spacing-sm); 
+  padding-top: 0; 
+}
+
+h4{
+  font-size:1.2rem;
+  margin:0 0 var(--spacing-sm) 0;
+  color:var(--color-text-main);
+}
+h5{
+  font-size:1rem;
+  margin-top:var(--spacing-md);
+}
+p{margin:0}
+a{color:var(--color-text-main);text-decoration:none}
+
+/* body 直下の説明文の調整 */
+body > span {
+  display: block;
+  margin-bottom: var(--spacing-md);
+  color: #999;
+  font-size: .85rem;
+}
+
+/* 3. フォーム要素のスタイル */
+input,textarea,select{
+  font-size:var(--font-size-base);
+  padding:var(--spacing-sm) .3rem;
+  border:1px solid var(--color-border);
+  border-radius:4px;
+  color:var(--color-text-main);
+  background-color:#fff;
+  cursor:pointer;
+  transition:background-color 0.3s,color 0.3s;
+  width:100%;
+  margin-top:.5rem;
+  margin-bottom: .8rem;
+}
+input[type="checkbox"]{
+  padding:0;
+  margin:0;
+  vertical-align:middle;
+  -webkit-appearance:checkbox; 
+  appearance:checkbox;
+}
+textarea{resize:vertical}
+select {
+  margin-top: .5rem;
+  margin-bottom: var(--spacing-md); 
+}
+
+/* 4. ボタンの共通スタイル */
+.container-button{
+  font-size:.8rem;
+  font-weight:700;
+  padding:.5rem 1rem; 
+  margin:.5rem .2rem;
+  border:0 solid var(--color-border);
+  border-radius:999px;
+  color:#fff;
+  background-color:var(--color-text-main);
+  white-space:nowrap;
+  cursor:pointer;
+  transition:background-color 0.3s,color 0.3s;
+}
+.container-button:hover{background-color:#555}
+
+/* フォームの間に独立して配置されるボタン（幅とマージンを調整） */
+/* HTML側に class="container-button" が適用されている前提 */
+#getFromExtensionButton, #fetchEventsButton, #showNewListButton {
+    display: block;
+    width: auto;
+    margin: var(--spacing-md) 0;
+}
+
+/* 3. 情報表示エリアの調整 */
+#pubkeyInfo{
+  margin: var(--spacing-md) 0;
+  padding: var(--spacing-sm);
+  border-left: 4px solid var(--color-text-main);
+  background-color: var(--color-highlight-bg);
+}
+#pubkeyInfo p {
+    line-height: 1.6;
+}
+
+/* 3. JSON表示エリア */
+#generatedJson{
+  background-color:#eee;
+  padding:var(--spacing-sm);
+  border:1px solid var(--color-border);
+  border-radius:4px;
+  white-space:pre-wrap;
+  word-wrap:break-word;
+  font-size:.8rem;
+  min-height:100px;
+  margin-bottom: var(--spacing-md);
+}
+
+/* Flexコンテナ */
+.flex-container{
+  display:flex;
+  align-items:flex-start;
+  gap:var(--spacing-sm);
+  margin:var(--spacing-sm) 0;
+}
+.flex-item{
+  flex-grow:1;
+  display:flex;
+  flex-direction:column;
+}
+.flex-item label{margin-bottom:.2rem}
+.flex-item textarea{margin-top:0}
+
+/* ローダー */
+#loader{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  background-color:rgba(255,255,255,.8);
+  padding:var(--spacing-md);
+  border-radius:8px;
+  z-index:10
+}
+#loader p{font-weight:700}
+#newListFormContainer{margin-top:var(--spacing-md)}
+
+/* 固有ボタンカラー */
+#generateButton{background-color:#fc6;color:#fff}
+#generateButton:hover{background-color:#ffb833}
+#updateButton{background-color:#66b3ff;color:#fff}
+#updateButton:hover{background-color:#4da6ff}
+#decryptButton{background-color:var(--color-text-main);color:#fff}
+#decryptButton:hover{background-color:#555}
+
+/* レスポンシブ対応 */
+@media(max-width:767px){
+    #container{
+        max-width:100%;
+        padding:8px;
+        margin:0; }
+    .flex-container{
+        flex-direction:column;
+        align-items:stretch;
+    }
+}
+</style>
 </head>
 <body>
  <div id="header-placeholder"></div>
  <h4>want peek you</h4>
  <span>Nostr kind:30000 Event Manager</span>
  <div id="container">
- <div id="loader" style="display:none;"><p>処理中...</p></div>
+ <div id="loader" style="display:none;"><p>now loading...</p></div>
  
  <button id="getFromExtensionButton" type="button">拡張機能から取得</button>
  <label for="nsecInput">秘密鍵(nsec):</label>
  <input type="text" id="nsecInput" placeholder="nsec1..." value="">
- <div id="pubkeyInfo" style="margin-top:10px;">
- <p>公開鍵(npub):<span id="npubDisplay"></span></p>
- <p>公開鍵(hex):<span id="hexDisplay"></span></p>
+ <div id="pubkeyInfo">
+ <p>公開鍵(npub):<span id="npubDisplay"></span><span> / </span><span id="hexDisplay"></span></p>
  </div>
 
  <label for="relayInput">使用するリレー(改行&コンマ区切り、空欄でデフォルトリレーを使用)</label>
@@ -26,29 +201,28 @@
 
  <button class="container-button" id="fetchEventsButton">読み込み</button>
  <button class="container-button" id="showNewListButton">新規作成</button>
- <label for="dTagSelect">編集したいリストを選択:</label>
+ <label for="dTagSelect">選択</label>
  <select id="dTagSelect" disabled>
  <option value=""></option>
  </select>
  <div id="newListFormContainer" style="display:none;">
- <label for="newDTagInput">新しいリスト名(dタグ):</label>
- <input type="text" id="newDTagInput" placeholder="例:my-friends-list">
+ <label for="newDTagInput">リスト名</label>
+ <input type="text" id="newDTagInput" placeholder="例:unmissable">
  </div>
  <button class="container-button" id="decryptButton" disabled>リストを編集</button>
  <div class="flex-container">
  <div class="flex-item">
- <label for="contentInput">リストのメンバー(追加・削除):</label>
- <textarea id="contentInput" rows="5" placeholder="公開鍵をhex形式で入力(改行、カンマ、スペース区切り)"></textarea>
+ <label for="pTagsInput">Public（公開リスト）</label>
+ <textarea id="pTagsInput" rows="5" placeholder="リストに入れたいひとの公開鍵をhex形式で入力(改行、カンマ、スペース区切り)"></textarea>
  </div>
  <div class="flex-item">
- <label for="pTagsInput">このリストのオーナー:</label>
- <textarea id="pTagsInput" rows="5" placeholder="公開鍵をhex形式で入力(改行、カンマ、スペース区切り)"></textarea>
+ <label for="contentInput">Private（非公開リスト）</label>
+ <textarea id="contentInput" rows="5" placeholder="リストに入れたいひとの公開鍵をhex形式で入力(改行、カンマ、スペース区切り)"></textarea>
  </div>
  </div>
- <button class="container-button" id="generateButton">変更内容を準備</button>
+ <button class="container-button" id="generateButton">変更内容を準備（非公開部分を暗号化）</button>
  <h5>生成されたJSON</h5>
- <pre id="generatedJson" style="min-height:100px;"></pre>
- <button class="container-button" id="updateButton" disabled>リストを更新する</button>
+ <pre id="generatedJson"></pre>  <button class="container-button" id="updateButton" disabled>リストを更新する</button>
  </div>
  <script src="https://ompomz.github.io/header/loadHeader.js"></script>
  <script src="https://unpkg.com/nostr-tools@2.17.0/lib/nostr.bundle.js"></script>
