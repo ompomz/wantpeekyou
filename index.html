@@ -5,182 +5,321 @@
  <meta name="viewport" content="width=device-width, initial-scale=1.0">
  <title>want peek you</title>
  <style>
-/* 1. CSSカスタムプロパティの定義 (一貫性の向上) */
+/*
+ * ========================================
+ * 🎨 CSS Custom Properties (Variables)
+ * ========================================
+ */
 :root {
-  --color-text-main: #666;
-  --color-bg-light: #f7f7f7;
-  --color-border: #ddd;
-  --color-highlight-bg: #f0f0f0; /* 公開鍵情報などの背景 */
-  --spacing-sm: .5rem;
-  --spacing-md: 1rem;
-  --font-size-base: .9rem;
+    --color-text-main: #666;
+    --color-bg-light: #f7f7f7;
+    --color-border: #ddd;
+    --color-highlight-bg: #f0f0f0;
+
+    --spacing-sm: .5rem;
+    --spacing-md: 1rem;
+
+    --font-size-base: .9rem;
 }
 
-/* リセット */
-*{margin:0;padding:0;box-sizing:border-box}
+/*
+ * ========================================
+ * 🔄 Reset & Global Styles
+ * ========================================
+ */
 
-body{
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
-  padding:var(--spacing-sm);
-  line-height:1.3;
-  font-weight:400;
-  background-color:var(--color-bg-light);
-  color:var(--color-text-main);
-  font-size:var(--font-size-base);
+/* Box Sizing Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-/* 2. #container の中央寄せとパディングの統一 */
-#container{
-  max-width:600px;
-  margin: 0 auto; 
-  padding:var(--spacing-sm); 
-  padding-top: 0; 
+/* Body Base Styles */
+body {
+    /* Typography */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    font-size: var(--font-size-base);
+    line-height: 1.3;
+    font-weight: 400;
+    color: var(--color-text-main);
+
+    /* Layout & Appearance */
+    background-color: var(--color-bg-light);
+    padding: var(--spacing-sm); /* 全体のパディング */
 }
 
-h4{
-  font-size:1.2rem;
-  margin:0 0 var(--spacing-sm) 0;
-  color:var(--color-text-main);
+/* Anchor Links */
+a {
+    color: var(--color-text-main);
+    text-decoration: none;
 }
-h5{
-  font-size:1rem;
-  margin-top:var(--spacing-md);
-}
-p{margin:0}
-a{color:var(--color-text-main);text-decoration:none}
 
-/* body 直下の説明文の調整 */
+/* Global span for status/info text (Based on body > span selector) */
 body > span {
-  display: block;
-  margin-bottom: var(--spacing-md);
-  color: #999;
-  font-size: .85rem;
+    display: block;
+    margin-bottom: var(--spacing-md);
+    color: #999;
+    font-size: .85rem;
 }
 
-/* 3. フォーム要素のスタイル */
-input,textarea,select{
-  font-size:var(--font-size-base);
-  padding:var(--spacing-sm) .3rem;
-  border:1px solid var(--color-border);
-  border-radius:4px;
-  color:var(--color-text-main);
-  background-color:#fff;
-  cursor:pointer;
-  transition:background-color 0.3s,color 0.3s;
-  width:100%;
-  margin-top:.5rem;
-  margin-bottom: .8rem;
+/*
+ * ========================================
+ * 🏗 Layout & Structure
+ * ========================================
+ */
+
+/* Main Content Container */
+#container {
+    max-width: 600px;
+    margin: 0 auto; /* 中央揃え */
+    padding: var(--spacing-sm);
+    padding-top: 0; /* 上部のパディングはボディで設定済みのため0に */
 }
-input[type="checkbox"]{
-  padding:0;
-  margin:0;
-  vertical-align:middle;
-  -webkit-appearance:checkbox; 
-  appearance:checkbox;
+
+/* Flexbox utility container */
+.flex-container {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    margin: var(--spacing-sm) 0;
 }
-textarea{resize:vertical}
+
+/* Flex item configuration */
+.flex-item {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.flex-item label {
+    margin-bottom: .2rem;
+}
+
+/*
+ * ========================================
+ * 🖋 Typography & Headings
+ * ========================================
+ */
+
+h4 {
+    font-size: 1.2rem;
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--color-text-main);
+}
+
+h5 {
+    font-size: 1rem;
+    margin-top: var(--spacing-md);
+}
+
+p {
+    margin: 0;
+}
+
+/*
+ * ========================================
+ * 📝 Form Elements
+ * ========================================
+ */
+
+input,
+textarea,
 select {
-  margin-top: .5rem;
-  margin-bottom: var(--spacing-md); 
+    /* Typography */
+    font-size: var(--font-size-base);
+    color: var(--color-text-main);
+
+    /* Layout & Appearance */
+    width: 100%;
+    padding: var(--spacing-sm) .3rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background-color: #fff;
+    cursor: pointer;
+    
+    /* Spacing */
+    margin-top: .5rem;
+    margin-bottom: .8rem;
+
+    /* Transition */
+    transition: background-color 0.3s, color 0.3s;
 }
 
-/* 4. ボタンの共通スタイル */
-.container-button{
-  font-size:.8rem;
-  font-weight:700;
-  padding:.5rem 1rem; 
-  margin:.5rem .2rem;
-  border:0 solid var(--color-border);
-  border-radius:999px;
-  color:#fff;
-  background-color:var(--color-text-main);
-  white-space:nowrap;
-  cursor:pointer;
-  transition:background-color 0.3s,color 0.3s;
+textarea {
+    resize: vertical;
 }
-.container-button:hover{background-color:#555}
 
-/* フォームの間に独立して配置されるボタン（幅とマージンを調整） */
-/* HTML側に class="container-button" が適用されている前提 */
-#getFromExtensionButton, #fetchEventsButton, #showNewListButton {
+select {
+    margin-bottom: var(--spacing-md); /* selectのみ下に多めのマージン */
+}
+
+/* Special treatment for Checkboxes */
+input[type="checkbox"] {
+    /* Reset default styling */
+    padding: 0;
+    margin: 0;
+    width: auto; /* チェックボックスは幅を100%にしない */
+
+    /* Native appearance */
+    vertical-align: middle;
+    -webkit-appearance: checkbox;
+    appearance: checkbox;
+}
+
+/* Textarea inside flex-item needs margin-top reset */
+.flex-item textarea {
+    margin-top: 0;
+}
+
+/*
+ * ========================================
+ * 🔘 Buttons
+ * ========================================
+ */
+
+/* Base Button Styles for .container-button and #getFromExtensionButton */
+.container-button,
+#getFromExtensionButton {
+    /* Typography */
+    font-size: .8rem;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap; /* テキストの折り返しを防ぐ */
+
+    /* Layout & Appearance */
+    padding: .5rem 1rem;
+    border: 0 solid var(--color-border); /* 0 solid border は冗長なので border: none; でも良いが元のコードを尊重 */
+    border-radius: 999px; /* ピル型 */
+    background-color: var(--color-text-main);
+    cursor: pointer;
+
+    /* Spacing */
+    margin: .5rem .2rem;
+
+    /* Transition */
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* Hover Effect for Base Buttons */
+.container-button:hover,
+#getFromExtensionButton:hover {
+    background-color: #555;
+}
+
+/* Block Buttons (Specific to certain elements) */
+#getFromExtensionButton,
+#fetchEventsButton,
+#showNewListButton {
     display: block;
     width: auto;
     margin: var(--spacing-md) 0;
 }
 
-/* 3. 情報表示エリアの調整 */
-#pubkeyInfo{
-  margin: var(--spacing-md) 0;
-  padding: var(--spacing-sm);
-  border-left: 4px solid var(--color-text-main);
-  background-color: var(--color-highlight-bg);
+/* Specific Button Colors */
+#generateButton {
+    background-color: #fc6;
+    color: #fff;
 }
+#generateButton:hover {
+    background-color: #ffb833;
+}
+
+#updateButton {
+    background-color: #66b3ff;
+    color: #fff;
+}
+#updateButton:hover {
+    background-color: #4da6ff;
+}
+
+#decryptButton {
+    background-color: var(--color-text-main);
+    color: #fff;
+}
+#decryptButton:hover {
+    background-color: #555;
+}
+
+
+/*
+ * ========================================
+ * ℹ️ Specific Components & Information
+ * ========================================
+ */
+
+/* Public Key Information Box */
+#pubkeyInfo {
+    margin: var(--spacing-md) 0;
+    padding: var(--spacing-sm);
+    border-left: 4px solid var(--color-text-main);
+    background-color: var(--color-highlight-bg);
+}
+
 #pubkeyInfo p {
     line-height: 1.6;
 }
 
-/* 3. JSON表示エリア */
-#generatedJson{
-  background-color:#eee;
-  padding:var(--spacing-sm);
-  border:1px solid var(--color-border);
-  border-radius:4px;
-  white-space:pre-wrap;
-  word-wrap:break-word;
-  font-size:.8rem;
-  min-height:100px;
-  margin-bottom: var(--spacing-md);
+/* Generated JSON Display Area */
+#generatedJson {
+    background-color: #eee;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    
+    /* Pre-wrap and word-wrap for text formatting */
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    
+    font-size: .8rem;
+    min-height: 100px;
+    margin-bottom: var(--spacing-md);
 }
 
-/* Flexコンテナ */
-.flex-container{
-  display:flex;
-  align-items:flex-start;
-  gap:var(--spacing-sm);
-  margin:var(--spacing-sm) 0;
+/* Loader Overlay */
+#loader {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    
+    /* Appearance */
+    background-color: rgba(255, 255, 255, .8);
+    padding: var(--spacing-md);
+    border-radius: 8px;
+    z-index: 10;
 }
-.flex-item{
-  flex-grow:1;
-  display:flex;
-  flex-direction:column;
+
+#loader p {
+    font-weight: 700;
 }
-.flex-item label{margin-bottom:.2rem}
-.flex-item textarea{margin-top:0}
 
-/* ローダー */
-#loader{
-  position:fixed;
-  top:50%;
-  left:50%;
-  transform:translate(-50%,-50%);
-  background-color:rgba(255,255,255,.8);
-  padding:var(--spacing-md);
-  border-radius:8px;
-  z-index:10
+/* New List Form Container */
+#newListFormContainer {
+    margin-top: var(--spacing-md);
 }
-#loader p{font-weight:700}
-#newListFormContainer{margin-top:var(--spacing-md)}
 
-/* 固有ボタンカラー */
-#generateButton{background-color:#fc6;color:#fff}
-#generateButton:hover{background-color:#ffb833}
-#updateButton{background-color:#66b3ff;color:#fff}
-#updateButton:hover{background-color:#4da6ff}
-#decryptButton{background-color:var(--color-text-main);color:#fff}
-#decryptButton:hover{background-color:#555}
 
-/* レスポンシブ対応 */
-@media(max-width:767px){
-    #container{
-        max-width:100%;
-        padding:8px;
-        margin:0; }
-    .flex-container{
-        flex-direction:column;
-        align-items:stretch;
+/*
+ * ========================================
+ * 📱 Media Queries (Responsiveness)
+ * ========================================
+ */
+
+@media (max-width: 767px) {
+    #container {
+        max-width: 100%;
+        padding: 8px; /* スモールパディングを直接指定 */
+        margin: 0;
+    }
+
+    /* Flex items stack vertically on smaller screens */
+    .flex-container {
+        flex-direction: column;
+        align-items: stretch;
     }
 }
-</style>
+ </style>
 </head>
 <body>
  <div id="header-placeholder"></div>
