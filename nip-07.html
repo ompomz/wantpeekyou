@@ -13,15 +13,19 @@
  <div id="container">
  <div id="loader" style="display:none;"><p>処理中...</p></div>
  
-<button id="getFromExtensionButton" type="button">拡張機能から取得</button>
-<label for="nsecInput">秘密鍵(nsec):</label>
+ <button id="getFromExtensionButton" type="button">拡張機能から取得</button>
+ <label for="nsecInput">秘密鍵(nsec):</label>
  <input type="text" id="nsecInput" placeholder="nsec1..." value="">
  <div id="pubkeyInfo" style="margin-top:10px;">
  <p>公開鍵(npub):<span id="npubDisplay"></span></p>
  <p>公開鍵(hex):<span id="hexDisplay"></span></p>
  </div>
-<button class="container-button" onclick="fetchEvents()">読み込み</button>
-<button class="container-button" onclick="showNewListForm()">新規作成</button>
+
+ <label for="relayInput">使用するリレー(改行&コンマ区切り、空欄でデフォルトリレーを使用)</label>
+ <textarea id="relayInput" placeholder="wss://relay.nostr.band/,wss://nos.lol/"></textarea>
+
+ <button class="container-button" id="fetchEventsButton">読み込み</button>
+ <button class="container-button" id="showNewListButton">新規作成</button>
  <label for="dTagSelect">編集したいリストを選択:</label>
  <select id="dTagSelect" disabled>
  <option value=""></option>
@@ -30,7 +34,7 @@
  <label for="newDTagInput">新しいリスト名(dタグ):</label>
  <input type="text" id="newDTagInput" placeholder="例:my-friends-list">
 </div>
- <button class="container-button" onclick="decryptContent()" id="decryptButton" disabled>リストを編集</button>
+ <button class="container-button" id="decryptButton" disabled>リストを編集</button>
  <div class="flex-container">
  <div class="flex-item">
  <label for="contentInput">リストのメンバー(追加・削除):</label>
@@ -41,13 +45,14 @@
  <textarea id="pTagsInput" rows="5" placeholder="公開鍵をhex形式で入力(改行、カンマ、スペース区切り)"></textarea>
  </div>
  </div>
- <button class="container-button" onclick="generateEvent()" id="generateButton">変更内容を準備</button>
+ <button class="container-button" id="generateButton">変更内容を準備</button>
  <h5>生成されたJSON</h5>
  <pre id="generatedJson" style="min-height:100px;"></pre>
- <button class="container-button" onclick="updateEvent()" id="updateButton" disabled>リストを更新する</button>
+ <button class="container-button" id="updateButton" disabled>リストを更新する</button>
  </div>
 <script src="https://unpkg.com/nostr-tools@2.17.0/lib/nostr.bundle.js"></script>
 <script src="script.js"></script>
+<script src="https://ompomz.github.io/flowgazer/relay-manager.js"></script>
 <script src="https://ompomz.github.io/header/loadHeader.js"></script>
 </body>
 </html>
