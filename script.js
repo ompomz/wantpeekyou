@@ -326,65 +326,51 @@ class NostrListManager {
    * コンテンツを復号
    */
   async decryptContent() {
-    this._showLoader();
+  this._showLoader();
+  try {
+    const selectedId = this.elements.dTagSelect?.value;
+    if (!selectedId) throw new Error('イベントを選択してください');
 
+    this.state.currentEvent = this.state.eventMap.get(selectedId);
+    if (!this.state.currentEvent) throw new Error('イベント情報が見つかりません');
+
+    const { privkey } = await this._getNostrKeys();
+
+    const senderPubkey = this.state.currentEvent.pubkey;
+
+    const decryptedContent = await this._decryptPreferExtension(
+      senderPubkey,
+      this.state.currentEvent.content,
+      privkey
+    );
+
+    let decryptedData;
     try {
-      const selectedId = this.elements.dTagSelect?.value;
-      if (!selectedId) {
-        throw new Error('イベントを選択してください');
-      }
-
-      this.state.currentEvent = this.state.eventMap.get(selectedId);
-      if (!this.state.currentEvent) {
-        throw new Error('イベント情報が見つかりません');
-      }
-
-      const { pubkey, privkey, isExtension } = await this._getNostrKeys();
-
-      if (pubkey !== this.state.currentEvent.pubkey) {
-        throw new Error('入力された鍵はこのイベントの公開鍵と一致しません');
-      }
-
-      // pタグから復号用の公開鍵を取得
-      this.state.originalPubkeysFromPtag = this.state.currentEvent.tags
-        .filter(t => t[0] === 'p')
-        .map(t => t[1]);
-
-      const dTagObj = this.state.currentEvent.tags.find(t => t[0] === 'd');
-      this.state.originalDtag = dTagObj ? dTagObj[1] : '';
-
-      if (this.state.originalPubkeysFromPtag.length === 0) {
-        throw new Error('pタグが見つからないため復号できません');
-      }
-
-      const pubkeyForDecryption = this.state.originalPubkeysFromPtag[0];
-      const decryptedContent = await this._decryptPreferExtension(
-        pubkeyForDecryption,
-        this.state.currentEvent.content,
-        privkey
-      );
-
-      const decryptedData = JSON.parse(decryptedContent);
-      const pubkeys = decryptedData.map(tag => tag[1]);
-
-      if (this.elements.contentInput) {
-        this.elements.contentInput.value = pubkeys.join('\n');
-      }
-      if (this.elements.pTagsInput) {
-        this.elements.pTagsInput.value = this.state.originalPubkeysFromPtag.join('\n');
-      }
-      if (this.elements.generateButton) {
-        this.elements.generateButton.disabled = false;
-      }
-
-      this._log('イベントを正常に復号しました', 'success');
-
-    } catch (error) {
-      this._log(`復号エラー: ${error.message}`, 'error');
-    } finally {
-      this._hideLoader();
+      decryptedData = JSON.parse(decryptedContent);
+    } catch (e) {
+      throw new Error('復号結果がJSONとして解釈できません');
     }
+
+    const pubkeys = decryptedData.map(tag => tag[1]);
+
+    if (this.elements.contentInput) {
+      this.elements.contentInput.value = pubkeys.join('\n');
+    }
+    if (this.elements.pTagsInput) {
+      this.elements.pTagsInput.value = this.state.currentEvent.tags
+        .filter(t => t[0] === 'p')
+        .map(t => t[1])
+        .join('\n');
+    }
+
+    if (this.elements.generateButton) this.elements.generateButton.disabled = false;
+    this._log('イベントを正常に復号しました', 'success');
+  } catch (error) {
+    this._log(`復号エラー: ${error.message}`, 'error');
+  } finally {
+    this._hideLoader();
   }
+}
 
   /**
    * 新規リストフォームを表示
@@ -403,61 +389,49 @@ class NostrListManager {
    * イベントを生成
    */
   async generateEvent() {
-    this._showLoader();
+  this._showLoader();
+  try {
+    const { pubkey, privkey } = await this._getNostrKeys();
 
-    try {
-      const { pubkey, privkey, isExtension } = await this._getNostrKeys();
+    const newContentPubkeys = this._parsePubkeys(this.elements.contentInput?.value);
+    const newPTagsPubkeys = this._parsePubkeys(this.elements.pTagsInput?.value);
 
-      const newContentPubkeys = this._parsePubkeys(this.elements.contentInput?.value);
-      const newPTagsPubkeys = this._parsePubkeys(this.elements.pTagsInput?.value);
-
-      if (newContentPubkeys.length === 0 || newPTagsPubkeys.length === 0) {
-        throw new Error('contentまたはpタグに公開鍵を入力してください');
-      }
-
-      const dtagToUse = this.elements.newDTagInput?.value?.trim() || this.state.originalDtag;
-      if (!dtagToUse) {
-        throw new Error('dタグ(リスト名)を入力してください');
-      }
-
-      // コンテンツを暗号化
-      const contentTags = newContentPubkeys.map(k => ['p', k]);
-      const recipientPubkey = newPTagsPubkeys[0];
-      const encryptedContent = await this._encryptPreferExtension(
-        recipientPubkey,
-        JSON.stringify(contentTags),
-        privkey
-      );
-
-      // イベントを構築
-      const event = {
-        kind: 30000,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [
-          ['d', dtagToUse],
-          ...newPTagsPubkeys.map(k => ['p', k])
-        ],
-        content: encryptedContent
-      };
-
-      // 署名
-      const signedEvent = await this._signEventPreferExtension(event, privkey);
-
-      if (this.elements.generatedJsonPre) {
-        this.elements.generatedJsonPre.textContent = JSON.stringify(signedEvent, null, 2);
-      }
-      if (this.elements.updateButton) {
-        this.elements.updateButton.disabled = false;
-      }
-
-      this._log('JSONイベントを生成しました', 'success');
-
-    } catch (error) {
-      this._log(`JSON生成エラー: ${error.message}`, 'error');
-    } finally {
-      this._hideLoader();
+    if (newContentPubkeys.length === 0 || newPTagsPubkeys.length === 0) {
+      throw new Error('contentまたはpタグに公開鍵を入力してください');
     }
+
+    const dtagToUse = this.elements.newDTagInput?.value?.trim() || this.state.originalDtag;
+    if (!dtagToUse) throw new Error('dタグ(リスト名)を入力してください');
+
+    const contentTags = newContentPubkeys.map(k => ['p', k]);
+
+    const encryptedContent = await this._encryptPreferExtension(
+      pubkey,
+      JSON.stringify(contentTags),
+      privkey
+    );
+
+    const event = {
+      kind: 30000,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [['d', dtagToUse], ...newPTagsPubkeys.map(k => ['p', k])],
+      content: encryptedContent,
+    };
+
+    const signedEvent = await this._signEventPreferExtension(event, privkey);
+
+    if (this.elements.generatedJsonPre) {
+      this.elements.generatedJsonPre.textContent = JSON.stringify(signedEvent, null, 2);
+    }
+    if (this.elements.updateButton) this.elements.updateButton.disabled = false;
+
+    this._log('JSONイベントを生成しました', 'success');
+  } catch (error) {
+    this._log(`JSON生成エラー: ${error.message}`, 'error');
+  } finally {
+    this._hideLoader();
   }
+}
 
   /**
    * イベントを更新（公開）
