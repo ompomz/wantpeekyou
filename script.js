@@ -335,14 +335,9 @@ class NostrListManager {
     if (!this.state.currentEvent) throw new Error('イベント情報が見つかりません');
 
     const { privkey } = await this._getNostrKeys();
-
     const senderPubkey = this.state.currentEvent.pubkey;
-
-    const decryptedContent = await this._decryptPreferExtension(
-      senderPubkey,
-      this.state.currentEvent.content,
-      privkey
-    );
+    const decryptedContent = await this._decryptPreferExtension(senderPubkey,
+      this.state.currentEvent.content, privkey);
 
     let decryptedData;
     try {
@@ -351,16 +346,15 @@ class NostrListManager {
       throw new Error('復号結果がJSONとして解釈できません');
     }
 
+    // 公開鍵リストをUIに反映
     const pubkeys = decryptedData.map(tag => tag[1]);
+    this.elements.contentInput.value = pubkeys.join('\n');
+    this.elements.pTagsInput.value = this.state.currentEvent.tags.filter(t => t[0] === 'p').map(t => t[1]).join('\n');
 
-    if (this.elements.contentInput) {
-      this.elements.contentInput.value = pubkeys.join('\n');
-    }
-    if (this.elements.pTagsInput) {
-      this.elements.pTagsInput.value = this.state.currentEvent.tags
-        .filter(t => t[0] === 'p')
-        .map(t => t[1])
-        .join('\n');
+    // ✅ dタグを保持
+    const dTag = this.state.currentEvent.tags.find(t => t[0] === 'd');
+    if (dTag) {
+      this.state.originalDtag = dTag[1];
     }
 
     if (this.elements.generateButton) this.elements.generateButton.disabled = false;
@@ -400,7 +394,7 @@ class NostrListManager {
       throw new Error('contentまたはpタグに公開鍵を入力してください');
     }
 
-    const dtagToUse = this.elements.newDTagInput?.value?.trim() || this.state.originalDtag;
+    const dtagToUse = this.elements.newDTagInput?.value?.trim() || this.state.originalDtag || 'default';
     if (!dtagToUse) throw new Error('dタグ(リスト名)を入力してください');
 
     const contentTags = newContentPubkeys.map(k => ['p', k]);
