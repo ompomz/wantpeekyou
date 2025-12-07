@@ -431,40 +431,31 @@ class NostrListManager {
    * イベントを更新（公開）
    */
   async updateEvent() {
-    this._showLoader();
-
-    try {
-      if (!this.elements.generatedJsonPre?.textContent) {
-        throw new Error('送信するイベントがありません');
-      }
-
-      const event = JSON.parse(this.elements.generatedJsonPre.textContent);
-      
-      // 最後に接続したリレーまたはデフォルトを使用
-      const relayUrl = this.state.lastConnectedRelay || this._getRelayList()[0];
-
-      // リレーに接続
-      if (!this.relayManager.isConnected() || this.relayManager.url !== relayUrl) {
-        await this.relayManager.connect(relayUrl);
-      }
-
-      this._log(`イベントを ${relayUrl} に公開中...`);
-
-      // イベントを公開
-      this.relayManager.publish(event);
-
-      // 公開結果を待機（OKメッセージを購読）
-      await this._waitForPublishResult(event.id);
-
-      alert(`${relayUrl} に kind:30000 を送信しました!`);
-      this._resetForm();
-
-    } catch (error) {
-      this._log(`イベント更新エラー: ${error.message}`, 'error');
-    } finally {
-      this._hideLoader();
+  this._showLoader();
+  try {
+    if (!this.elements.generatedJsonPre?.textContent) {
+      throw new Error('送信するイベントがありません');
     }
+    const event = JSON.parse(this.elements.generatedJsonPre.textContent);
+    const relayUrl = this.state.lastConnectedRelay || this._getRelayList()[0];
+
+    if (!this.relayManager.isConnected() || this.relayManager.url !== relayUrl) {
+      await this.relayManager.connect(relayUrl);
+    }
+
+    this._log(`イベントを ${relayUrl} に公開中...`);
+    this.relayManager.publish(event);
+
+    this._log('イベント送信処理を完了しました', 'success');
+    alert(`${relayUrl} に kind:30000 を送信しました!`);
+
+    this._resetForm();
+  } catch (error) {
+    this._log(`イベント更新エラー: ${error.message}`, 'error');
+  } finally {
+    this._hideLoader();
   }
+}
 
   /**
    * 公開結果を待機
