@@ -324,6 +324,15 @@
     }
   }
 
+  // --- showNewListForm ---
+  function showNewListForm(){
+    if(newListFormContainer){
+      newListFormContainer.style.display = 'block';
+      if(newDTagInput) newDTagInput.focus();
+    }
+    if(generateButton) generateButton.disabled = false;
+  }
+
   // --- generateEvent ---
   async function generateEvent(){
     showLoader();
@@ -394,8 +403,8 @@
           const data = JSON.parse(msg.data);
           if(data[0] === "OK"){
             if(data[2]){
-              log('イベントは正常に公開されました！','success');
-              alert(`${relayUrl} に kind:30000 を送信しました！`);
+              log('イベントは正常に公開されました!','success');
+              alert(`${relayUrl} に kind:30000 を送信しました!`);
               if(contentInput) contentInput.value = '';
               if(pTagsInput) pTagsInput.value = '';
               if(newDTagInput) newDTagInput.value = '';
@@ -426,16 +435,11 @@
     }
   }
 
-  // --- ボタンバインド ---
-  const fetchButton = document.getElementById('fetchEventsButton');
-  if(fetchButton) fetchButton.addEventListener('click', fetchEvents);
-  if(decryptButton) decryptButton.addEventListener('click', decryptContent);
-  const genBtn = document.getElementById('generateButton');
-  if(genBtn) genBtn.addEventListener('click', generateEvent);
-  const updBtn = document.getElementById('updateButton');
-  if(updBtn) updBtn.addEventListener('click', updateEvent);
-
-  window.myNostrList = { fetchEvents, decryptContent, generateEvent, updateEvent };
+  window.fetchEvents = fetchEvents;
+  window.decryptContent = decryptContent;
+  window.generateEvent = generateEvent;
+  window.updateEvent = updateEvent;
+  window.showNewListForm = showNewListForm;
 
   // --- 初期表示: nsecに値があれば表示に反映 ---
   try{
