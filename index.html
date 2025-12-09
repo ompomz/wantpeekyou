@@ -10,7 +10,6 @@
   padding: 0;
   box-sizing: border-box;
 }
-/* ベース */
 body {
   font-weight: 400;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -20,7 +19,6 @@ body {
   color: #666;
   font-size: .9rem;
 }
-/* コンテナ */
 #container {
   max-width: 600px;
   margin: 1rem auto;
@@ -29,12 +27,10 @@ body {
   border: 1px solid #ddd;
   border-radius: 8px;
 }
-/* 見出し */
 h4 {
   font-size: 1.2rem;
   margin-bottom: .5rem;
 }
-/* 入力欄・テキストエリア・セレクト */
 input, textarea, select {
   transition: background-color 0.3s, color 0.3s;
   font-size: .9rem;
@@ -49,9 +45,7 @@ input, textarea, select {
 textarea {
   resize: vertical;
 }
-/* ボタン共通 */
-.container-button,
-#getFromExtensionButton {
+.container-button {
   white-space: nowrap;
   font-size: .8rem;
   font-weight: 700;
@@ -64,11 +58,13 @@ textarea {
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
-.container-button:hover,
-#getFromExtensionButton:hover {
+.container-button:hover {
   background-color: #444;
 }
-/* フレックス配置 */
+.container-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
 .flex-container {
   display: flex;
   gap: .5rem;
@@ -77,20 +73,53 @@ textarea {
 .flex-item {
   flex: 1;
 }
-/* JSON表示枠 */
 pre {
   background: #f0f0f0;
   padding: .5rem;
   border-radius: 4px;
   min-height: 100px;
   overflow-x: auto;
+  font-size: .85rem;
 }
-/* レスポンシブ */
+.auth-status {
+  background: #e0f2f1;
+  padding: .5rem;
+  border-radius: 4px;
+  margin: .5rem 0;
+  font-size: .85rem;
+}
+.auth-status.readonly {
+  background: #fff3e0;
+}
+.auth-buttons {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+#decrypt-auth-panel {
+  background: #fff9c4;
+  border: 2px solid #fbc02d;
+  padding: 1rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+#decrypt-auth-panel h5 {
+  margin-bottom: .5rem;
+  color: #f57f17;
+}
+.warning-text {
+  color: #d32f2f;
+  font-size: .85rem;
+  margin: .5rem 0;
+}
 @media (max-width: 767px) {
   #container {
     max-width: 100%;
     padding: 8px;
     margin: 0;
+  }
+  .flex-container {
+    flex-direction: column;
   }
 }
  </style>
@@ -99,47 +128,84 @@ pre {
  <div id="header-placeholder"></div>
  <h4>want peek you</h4>
  <span>Nostr kind:30000 Event Manager</span>
- <div id="container">
- <div id="loader" style="display:none;"><p>now loading...</p></div>
  
- <button id="getFromExtensionButton" type="button">拡張機能から取得</button>
- <label for="nsecInput">秘密鍵(nsec):</label>
- <input type="text" id="nsecInput" placeholder="nsec1..." value="">
- <div id="pubkeyInfo">
- <p>公開鍵(npub):<span id="npubDisplay"></span><span> / </span><span id="hexDisplay"></span></p>
+ <div id="container">
+   <div id="loader" style="display:none;"><p>now loading...</p></div>
+   
+   <!-- 認証状態表示 -->
+   <div id="auth-status" class="auth-status">
+     <strong>ログイン状態:</strong> <span id="auth-status-text">未ログイン</span>
+   </div>
+   
+   <!-- 認証ボタン -->
+   <div class="auth-buttons">
+     <button class="container-button" onclick="showAuthUI()">ログイン / 鍵管理</button>
+     <button class="container-button" id="logout-button" style="display:none;">ログアウト</button>
+   </div>
+
+   <label for="relayInput">使用するリレー(改行&コンマ区切り、空欄でデフォルトリレーを使用)</label>
+   <textarea id="relayInput" placeholder="wss://relay.nostr.band/,wss://nos.lol/"></textarea>
+
+   <button class="container-button" id="fetchEventsButton">リストを読み込み</button>
+   <button class="container-button" id="showNewListButton">新規リスト作成</button>
+   
+   <label for="dTagSelect">既存リストを選択</label>
+   <select id="dTagSelect" disabled>
+     <option value="">リストを選択してください</option>
+   </select>
+   
+   <div id="newListFormContainer" style="display:none;">
+     <label for="newDTagInput">新しいリスト名</label>
+     <input type="text" id="newDTagInput" placeholder="例: unmissable">
+   </div>
+
+   <!-- 復号用の認証パネル（非公開リスト編集時のみ表示） -->
+   <div id="decrypt-auth-panel" style="display:none;">
+     <h5>🔐 非公開リストの復号</h5>
+     <p class="warning-text">非公開リストを編集するには、秘密鍵またはNIP-07拡張機能が必要です。</p>
+     
+     <div style="margin: .5rem 0;">
+       <button class="container-button" id="decrypt-with-extension">NIP-07拡張機能で復号</button>
+     </div>
+     
+     <div style="margin: .5rem 0;">
+       <label for="decrypt-nsec-input">または秘密鍵(nsec)を入力:</label>
+       <input type="password" id="decrypt-nsec-input" placeholder="nsec1...">
+       <button class="container-button" id="decrypt-with-nsec">この鍵で復号</button>
+     </div>
+     
+     <button class="container-button" id="cancel-decrypt" style="background-color: #999;">キャンセル</button>
+   </div>
+
+   <button class="container-button" id="decryptButton" disabled>リストを編集</button>
+   
+   <div class="flex-container">
+     <div class="flex-item">
+       <label for="pTagsInput">Public（公開リスト）</label>
+       <textarea id="pTagsInput" rows="5" placeholder="リストに入れたい人の公開鍵をhex形式で入力(改行、カンマ、スペース区切り)"></textarea>
+     </div>
+     <div class="flex-item">
+       <label for="contentInput">Private（非公開リスト）</label>
+       <textarea id="contentInput" rows="5" placeholder="リストに入れたい人の公開鍵をhex形式で入力(改行、カンマ、スペース区切り)" disabled></textarea>
+       <small style="color: #999;">※非公開リストの編集には秘密鍵が必要です</small>
+     </div>
+   </div>
+   
+   <button class="container-button" id="generateButton" disabled>変更内容を準備（非公開部分を暗号化）</button>
+   
+   <h5>生成されたJSON</h5>
+   <pre id="generatedJson"></pre>
+   
+   <button class="container-button" id="updateButton" disabled>リストを更新する</button>
+   
+   <div id="log" style="margin-top: 1rem; padding: .5rem; background: #f5f5f5; border-radius: 4px; max-height: 200px; overflow-y: auto;"></div>
  </div>
 
- <label for="relayInput">使用するリレー(改行&コンマ区切り、空欄でデフォルトリレーを使用)</label>
- <textarea id="relayInput" placeholder="wss://relay.nostr.band/,wss://nos.lol/"></textarea>
-
- <button class="container-button" id="fetchEventsButton">読み込み</button>
- <button class="container-button" id="showNewListButton">新規作成</button>
- <label for="dTagSelect">選択</label>
- <select id="dTagSelect" disabled>
- <option value=""></option>
- </select>
- <div id="newListFormContainer" style="display:none;">
- <label for="newDTagInput">リスト名</label>
- <input type="text" id="newDTagInput" placeholder="例:unmissable">
- </div>
- <button class="container-button" id="decryptButton" disabled>リストを編集</button>
- <div class="flex-container">
- <div class="flex-item">
- <label for="pTagsInput">Public（公開リスト）</label>
- <textarea id="pTagsInput" rows="5" placeholder="リストに入れたいひとの公開鍵をhex形式で入力(改行、カンマ、スペース区切り)"></textarea>
- </div>
- <div class="flex-item">
- <label for="contentInput">Private（非公開リスト）</label>
- <textarea id="contentInput" rows="5" placeholder="リストに入れたいひとの公開鍵をhex形式で入力(改行、カンマ、スペース区切り)"></textarea>
- </div>
- </div>
- <button class="container-button" id="generateButton">変更内容を準備（非公開部分を暗号化）</button>
- <h5>生成されたJSON</h5>
- <pre id="generatedJson"></pre>  <button class="container-button" id="updateButton" disabled>リストを更新する</button>
- </div>
  <script src="https://ompomz.github.io/header/loadHeader.js"></script>
  <script src="https://unpkg.com/nostr-tools@2.17.0/lib/nostr.bundle.js"></script>
  <script src="https://ompomz.github.io/flowgazer/relay-manager.js"></script>
- <script src="script.js"></script>
+ <script src="https://ompomz.github.io/flowgazer/auth.js"></script>
+ <script src="https://ompomz.github.io/flowgazer/auth-ui.js"></script>
+ <script src="./script.js"></script>
 </body>
 </html>
