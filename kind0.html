@@ -1,35 +1,167 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
+
 <head>
-  <meta charset="UTF-8">
-  <title>kind:0取得ツール</title>
-  <script src="https://cdn.jsdelivr.net/npm/nostr-tools@2.1.2/lib/nostr.bundle.min.js"></script>
+  <title>Nostr Profile Fetcher</title>
+  <script src="https://cdn.jsdelivr.net/npm/nostr-tools@2.1.2/lib/nostr-tools.min.js"></script>
   <style>
-    textarea, button { margin: 0; padding: 0.25rem; }
-    #input-container { display: flex; gap: 0.5rem; align-items: flex-end; }
-    table { border-collapse: collapse; width: 90%; }
-    th, td { border: 1px solid #ccc; padding: 0.25rem; text-align: left; }
-    th { text-align: center; }
-    th button { margin:0rem 0.5rem 0rem 0.5rem; }
+    /* グローバルリセットとテーマ設定 */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #1e1e1e;
+      /* ダーク背景 */
+      color: #f0f0f0;
+      /* 明るいテキスト */
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* コンテナ */
+    #input-container {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      width: 100%;
+      max-width: 800px;
+    }
+
+    /* テキストエリア */
+    #pubkey-input {
+      flex-grow: 1;
+      padding: 10px;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      background-color: #252526;
+      color: #f0f0f0;
+      resize: vertical;
+      min-height: 100px;
+      box-sizing: border-box;
+    }
+
+    #pubkey-input::placeholder {
+      color: #a0a0a0;
+    }
+
+    /* ボタンのスタイル */
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background-color: #007acc;
+      /* アクセントカラー */
+      color: white;
+      font-weight: bold;
+      transition: background-color 0.2s ease;
+      white-space: nowrap;
+      /* ボタン内のテキスト折り返しを防ぐ */
+    }
+
+    button:hover {
+      background-color: #005f99;
+    }
+
+    button:active {
+      background-color: #004c7a;
+    }
+
+    #input-container button {
+      align-self: flex-start;
+      /* テキストエリアの高さに合わせて上端揃え */
+      height: 40px;
+      /* 一貫性のある高さ */
+      margin-top: 10px;
+    }
+
+    /* テーブルスタイル */
+    #profile-table {
+      width: 100%;
+      max-width: 1000px;
+      border-collapse: collapse;
+      margin-top: 20px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    /* テーブルヘッダー */
+    #profile-table thead tr {
+      background-color: #333333;
+      color: #ffffff;
+      text-align: left;
+    }
+
+    #profile-table th {
+      padding: 12px 15px;
+      position: sticky;
+      /* ヘッダーを固定 */
+      top: 0;
+      z-index: 10;
+    }
+
+    /* テーブルボディ */
+    #profile-table tbody tr {
+      border-bottom: 1px solid #444444;
+      transition: background-color 0.2s ease;
+    }
+
+    #profile-table tbody tr:nth-child(even) {
+      background-color: #2a2a2a;
+      /* 偶数行にストライプ */
+    }
+
+    #profile-table tbody tr:hover {
+      background-color: #3e3e3e;
+      /* ホバーエフェクト */
+    }
+
+    #profile-table td {
+      padding: 10px 15px;
+      word-break: break-all;
+      /* 長い文字列を折り返す */
+    }
+
+    /* ヘッダー内のコピーボタンのスタイル調整 */
+    #profile-table th button {
+      margin-left: 5px;
+      padding: 4px 8px;
+      font-size: 0.8em;
+      background-color: #555555;
+    }
+
+    #profile-table th button:hover {
+      background-color: #666666;
+    }
+
+    /* メインタイトル */
+    p {
+      font-size: 1.2em;
+      margin-bottom: 15px;
+      font-weight: 500;
+    }
   </style>
 </head>
+
 <body>
-<p>kind:0取得</p>
-<div id="input-container">
-<textarea id="pubkey-input" rows="4" cols="80" placeholder="hexまたはnpubを改行またはカンマで区切って入力"></textarea>
-<button onclick="getProfiles()">取得</button></div>
-<table id="profile-table">
-<thead>
-<tr>
-<th>name<button onclick="copyColumn(0)">コピー</button></th>
-<th>display_name<button onclick="copyColumn(1)">コピー</button></th>
-<th>hex<button onclick="copyColumn(2)">コピー</button></th>
-<th>npub<button onclick="copyColumn(3)">コピー</button></th>
-</tr>
-</thead>
-<tbody></tbody>
-</table>
-<script>
+  <p>kind:0取得</p>
+  <div id="input-container">
+    <textarea id="pubkey-input" rows="4" cols="80" placeholder="hexまたはnpubを改行またはカンマで区切って入力"></textarea>
+    <button onclick="getProfiles()">取得</button>
+  </div>
+  <table id="profile-table">
+    <thead>
+      <tr>
+        <th>name<button onclick="copyColumn(0)">コピー</button></th>
+        <th>display_name<button onclick="copyColumn(1)">コピー</button></th>
+        <th>hex<button onclick="copyColumn(2)">コピー</button></th>
+        <th>npub<button onclick="copyColumn(3)">コピー</button></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <script>
+    // ... JavaScriptコードは変更なし ...
     const relayURL = "wss://relay.nostr.band";
 
     function decodeNpub(npub) {
@@ -56,7 +188,7 @@
       };
 
       socket.onmessage = (event) => {
-        const [type,, eventData] = JSON.parse(event.data);
+        const [type, , eventData] = JSON.parse(event.data);
         if (type === "EVENT") {
           try {
             const profile = JSON.parse(eventData.content);
@@ -82,4 +214,5 @@
     }
   </script>
 </body>
+
 </html>
