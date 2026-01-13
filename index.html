@@ -168,12 +168,11 @@ pre {
        <button class="container-button" id="decrypt-with-extension">NIP-07拡張機能で復号</button>
      </div>
      
-     <div style="margin: .5rem 0;">
-       <label for="decrypt-nsec-input">または秘密鍵(nsec)を入力:</label>
-       <input type="password" id="decrypt-nsec-input" placeholder="nsec1...">
-       <button class="container-button" id="decrypt-with-nsec">この鍵で復号</button>
-     </div>
-     
+    <form onsubmit="return false;" style="margin: .5rem 0;">
+      <label for="decrypt-nsec-input">または秘密鍵(nsec)を入力:</label>
+      <input type="password" id="decrypt-nsec-input" placeholder="nsec1..." autocomplete="current-password">
+      <button type="button" class="container-button" id="decrypt-with-nsec">この鍵で復号</button>
+    </form>
      <button class="container-button" id="cancel-decrypt" style="background-color: #999;">キャンセル</button>
    </div>
 
